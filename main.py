@@ -3,7 +3,7 @@
 Umi-Float 主入口
 """
 import sys
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMenu, QAction
 from PyQt5.QtCore import QTimer
 
 from core.config import get_config
@@ -85,17 +85,20 @@ class Application:
     
     def _show_context_menu(self):
         """显示右键菜单"""
-        # TODO: 实现右键菜单逻辑（或复用托盘菜单）
-        # 目前先打开面板作为右键点击的响应
-        self._toggle_panel()
+        menu = QMenu()
+        settings_action = QAction("设置", self.app)
+        settings_action.triggered.connect(self._show_settings)
+        menu.addAction(settings_action)
+        menu.addSeparator()
+        quit_action = QAction("退出", self.app)
+        quit_action.triggered.connect(self._quit)
+        menu.addAction(quit_action)
+        menu.exec_(self.float_widget.mapToGlobal(self.float_widget.rect().center()))
     
     def _execute_plugin(self, plugin_id: str):
         """执行插件"""
         self.plugin_manager.execute_plugin(plugin_id)
         self.drawer_panel.hide_panel()
-        """显示右键菜单"""
-        # TODO: 实现右键菜单逻辑（或复用托盘菜单）
-        print("右键菜单功能待实现")
     
     def run(self):
         """运行应用"""
