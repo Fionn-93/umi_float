@@ -5,8 +5,9 @@ import math
 from functools import partial
 
 from PyQt5.QtWidgets import QWidget, QLabel
-from PyQt5.QtCore import Qt, pyqtSignal, pyqtProperty, QPropertyAnimation, QEasingCurve, QTimer, QPoint
-from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QRadialGradient, QRegion
+from PyQt5.QtCore import Qt, pyqtSignal, pyqtProperty, QPropertyAnimation, QEasingCurve, QTimer, QPoint, QByteArray
+from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QRadialGradient, QRegion, QPixmap
+from PyQt5.QtSvg import QSvgRenderer
 
 
 class PieButton(QLabel):
@@ -127,6 +128,108 @@ class PieButton(QLabel):
         super().mousePressEvent(event)
 
 
+def _get_assets_dir():
+    """获取 assets 目录路径"""
+    from pathlib import Path
+    return Path(__file__).parent.parent / "assets"
+
+
+class CenterButton(QLabel):
+    """中心返回按钮"""
+    
+    clicked = pyqtSignal()
+    
+    def __init__(self, size: int = 80, parent=None):
+        super().__init__(parent)
+        self.size = size
+        self.setFixedSize(size, size)
+        self.setAlignment(Qt.AlignCenter)
+        self.setCursor(Qt.PointingHandCursor)
+        
+        self._update_style(False)
+        self._update_icon(False)
+    
+    def _update_style(self, hovered: bool):
+        """更新样式"""
+        from PyQt5.QtGui import QPalette
+        from PyQt5.QtWidgets import QApplication
+        
+        app = QApplication.instance()
+        if app is None:
+            return
+        
+        palette = app.palette()
+        bg_color = palette.color(QPalette.Window)
+        is_dark = bg_color.lightness() <= 128
+        
+        if is_dark:
+            if hovered:
+                bg = QColor(74, 144, 226, 200)
+            else:
+                bg = QColor(40, 40, 40, 200)
+        else:
+            if hovered:
+                bg = QColor(74, 144, 226, 200)
+            else:
+                bg = QColor(255, 255, 255, 240)
+        
+        radius = self.size // 2
+        self.setStyleSheet(f"""
+            QLabel {{
+                background: rgba({bg.red()}, {bg.green()}, {bg.blue()}, {bg.alpha()});
+                border-radius: {radius}px;
+            }}
+        """)
+    
+    def _update_icon(self, hovered: bool):
+        """更新图标"""
+        from PyQt5.QtGui import QPalette
+        from PyQt5.QtWidgets import QApplication
+        
+        app = QApplication.instance()
+        if app is None:
+            return
+        
+        palette = app.palette()
+        bg_color = palette.color(QPalette.Window)
+        is_dark = bg_color.lightness() <= 128
+        
+        # 根据主题选择图标文件
+        if hovered or is_dark:
+            icon_file = _get_assets_dir() / "arrow-go-back-line-white.svg"
+        else:
+            icon_file = _get_assets_dir() / "arrow-go-back-line-black.svg"
+        
+        # 渲染 SVG
+        renderer = QSvgRenderer(str(icon_file))
+        icon_size = int(self.size * 0.618)  # 黄金比例
+        pixmap = QPixmap(icon_size, icon_size)
+        pixmap.fill(Qt.transparent)
+        painter = QPainter(pixmap)
+        renderer.render(painter)
+        painter.end()
+        
+        self.setPixmap(pixmap)
+    
+    def enterEvent(self, event):
+        """鼠标进入"""
+        self._update_style(True)
+        self._update_icon(True)
+        super().enterEvent(event)
+    
+    def leaveEvent(self, event):
+        """鼠标离开"""
+        self._update_style(False)
+        self._update_icon(False)
+        super().leaveEvent(event)
+    
+    def mousePressEvent(self, event):
+        """鼠标点击"""
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
+
+
 class PiePanel(QWidget):
     """环形菜单面板"""
     
@@ -156,20 +259,9 @@ class PiePanel(QWidget):
     
     def _setup_ui(self):
         """设置UI"""
-        # 中心标签（显示"菜单"或图标）
-        self._center_label = QLabel("菜单", self)
-        self._center_label.setAlignment(Qt.AlignCenter)
-        from PyQt5.QtCore import QSize
-        self._center_label.setFixedSize(80, 80)
-        self._center_label.setStyleSheet("""
-            QLabel {
-                background: rgba(74, 144, 226, 200);
-                color: white;
-                border-radius: 40px;
-                font-size: 20px;
-                font-weight: bold;
-            }
-        """)
+        # 中心返回按钮
+        self._center_label = CenterButton(size=80, parent=self)
+        self._center_label.clicked.connect(self.hide_panel)
         self._center_label.hide()
     
     def set_plugins(self, plugins):
