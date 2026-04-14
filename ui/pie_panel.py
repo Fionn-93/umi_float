@@ -6,7 +6,7 @@ from functools import partial
 
 from PyQt5.QtWidgets import QWidget, QLabel
 from PyQt5.QtCore import Qt, pyqtSignal, pyqtProperty, QPropertyAnimation, QEasingCurve, QTimer, QPoint
-from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QRadialGradient
+from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QRadialGradient, QRegion
 
 
 class PieButton(QLabel):
@@ -141,6 +141,7 @@ class PiePanel(QWidget):
         self._buttons = []
         self._button_targets = []
         self._center_pos = QPoint(200, 200)
+        self._pie_radius = 0  # 环形布局半径，用于计算 mask
         self._animation_group = []
         self._is_expanded = False
         self._is_collapsing = False  # 正在播放收起动画
@@ -202,6 +203,8 @@ class PiePanel(QWidget):
     
     def show_panel(self, parent_widget):
         """显示面板"""
+        self.clearMask()  # 清除 mask，确保动画过程中按钮可正常显示
+        
         parent_pos = parent_widget.pos()
         parent_size = parent_widget.size()
         parent_radius = parent_size.width() // 2
@@ -286,6 +289,8 @@ class PiePanel(QWidget):
             pie_radius = circumference / (2 * math.pi)
             pie_radius = max(pie_radius, center_label_radius + button_radius + spacing)
         
+        self._pie_radius = pie_radius
+        
         # 计算每个按钮的目标位置
         for i, btn in enumerate(self._buttons):
             if num_buttons == 1:
@@ -346,7 +351,25 @@ class PiePanel(QWidget):
             
             self._animation_group.append(pos_anim)
             self._animation_group.append(scale_anim)
+        
+        # 动画完成后设置圆形 mask，使空白区域不接收鼠标事件
+        total_delay = (len(self._buttons) - 1) * 40 + 300
+        QTimer.singleShot(total_delay, self._apply_mask)
     
+    def _apply_mask(self):
+        """设置圆形 mask，将热区限制为可见内容区域"""
+        button_radius = 56 // 2
+        # mask 半径 = 环形布局半径 + 按钮半径 + 少量 padding
+        mask_radius = int(self._pie_radius + button_radius + 8)
+        cx = self._center_pos.x()
+        cy = self._center_pos.y()
+        region = QRegion(
+            cx - mask_radius, cy - mask_radius,
+            mask_radius * 2, mask_radius * 2,
+            QRegion.Ellipse
+        )
+        self.setMask(region)
+
     def _collapse_animations(self, callback):
         """收起动画：按钮飞回中心，同时缩小"""
         self._is_expanded = False
@@ -405,6 +428,7 @@ class PiePanel(QWidget):
         """立即隐藏"""
         self._is_expanded = False
         self._is_collapsing = False
+        self.clearMask()
         self.hide()
     
     def hideEvent(self, event):
