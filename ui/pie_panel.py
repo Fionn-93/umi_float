@@ -23,6 +23,7 @@ class PieButton(QLabel):
         self.setFixedSize(size, size)
         self.setAlignment(Qt.AlignCenter)
         self._scale = 0.0
+        self._hover_enabled = True
         
         from PyQt5.QtGui import QIcon
         from PyQt5.QtWidgets import QApplication, QStyle
@@ -100,12 +101,14 @@ class PieButton(QLabel):
     
     def enterEvent(self, event):
         """鼠标进入"""
-        self._update_style(True)
+        if self._hover_enabled:
+            self._update_style(True)
         super().enterEvent(event)
     
     def leaveEvent(self, event):
         """鼠标离开"""
-        self._update_style(False)
+        if self._hover_enabled:
+            self._update_style(False)
         super().leaveEvent(event)
     
     def mousePressEvent(self, event):
@@ -132,13 +135,14 @@ class CenterButton(QLabel):
         self.setFixedSize(size, size)
         self.setAlignment(Qt.AlignCenter)
         self.setCursor(Qt.PointingHandCursor)
+        self._hover_enabled = True
         
         self._update_style(False)
         self._update_icon(False)
     
     # 自定义主题色 - 与 PieButton 保持一致
-    THEME_BG_NORMAL = QColor(240, 248, 255, 240)  # 爱丽丝蓝
-    THEME_BG_HOVERED = QColor(100, 149, 237, 220)  # 矢车菊蓝，悬停色
+    THEME_BG_NORMAL = QColor(240, 248, 255)  # 爱丽丝蓝（不透明）
+    THEME_BG_HOVERED = QColor(100, 149, 237)  # 矢车菊蓝，悬停色（不透明）
     
     def _update_style(self, hovered: bool):
         """更新样式 - 使用自定义主题色"""
@@ -152,35 +156,52 @@ class CenterButton(QLabel):
             QLabel {{
                 background: rgba({bg.red()}, {bg.green()}, {bg.blue()}, {bg.alpha()});
                 border-radius: {radius}px;
+                margin: 0px;
+                padding: 0px;
             }}
         """)
     
     def _update_icon(self, hovered: bool):
-        """更新图标 - 使用固定白色图标"""
-        # 始终使用白色图标
-        icon_file = _get_assets_dir() / "arrow-go-back-line-white.svg"
-        
-        # 渲染 SVG
-        renderer = QSvgRenderer(str(icon_file))
-        icon_size = int(self.size * 0.618)  # 黄金比例
-        pixmap = QPixmap(icon_size, icon_size)
+        """更新图标 - hover时白色，正常时钢青色"""
+        from PyQt5.QtWidgets import QApplication
+
+        icon_file = _get_assets_dir() / "arrow-go-back-line-black.svg"
+
+        app = QApplication.instance()
+        dpr = app.devicePixelRatio() if app else 1.0
+
+        icon_size = int(56 * 0.618)
+        pixmap = QPixmap(int(icon_size * dpr), int(icon_size * dpr))
         pixmap.fill(Qt.transparent)
+
         painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        renderer = QSvgRenderer(str(icon_file))
         renderer.render(painter)
+
+        # 动态着色：hover 白色，正常钢青色
+        color = QColor(255, 255, 255) if hovered else QColor(70, 130, 180)
+        painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+        painter.fillRect(pixmap.rect(), color)
         painter.end()
-        
+
+        pixmap.setDevicePixelRatio(dpr)
         self.setPixmap(pixmap)
     
     def enterEvent(self, event):
         """鼠标进入"""
-        self._update_style(True)
-        self._update_icon(True)
+        if self._hover_enabled:
+            self._update_style(True)
+            self._update_icon(True)
         super().enterEvent(event)
     
     def leaveEvent(self, event):
         """鼠标离开"""
-        self._update_style(False)
-        self._update_icon(False)
+        if self._hover_enabled:
+            self._update_style(False)
+            self._update_icon(False)
         super().leaveEvent(event)
     
     def mousePressEvent(self, event):
@@ -367,6 +388,11 @@ class PiePanel(QWidget):
         """展开动画：按钮从中心飞出到目标位置，同时从小变大"""
         self._is_expanded = True
         
+        # 动画期间禁用 hover，防止按钮飞出时误触发 hover
+        for btn in self._buttons:
+            btn._hover_enabled = False
+        self._center_label._hover_enabled = False
+        
         # 清除现有动画
         for anim in self._animation_group:
             anim.stop()
@@ -407,6 +433,23 @@ class PiePanel(QWidget):
         # 动画完成后设置圆形 mask，使空白区域不接收鼠标事件
         total_delay = (len(self._buttons) - 1) * 40 + 300
         QTimer.singleShot(total_delay, self._apply_mask)
+        QTimer.singleShot(total_delay, self._on_expand_finished)
+    
+    def _on_expand_finished(self):
+        """展开动画结束后恢复 hover 并检测鼠标位置"""
+        for btn in self._buttons:
+            btn._hover_enabled = True
+        self._center_label._hover_enabled = True
+        
+        # 检测鼠标下方的组件，应用正确的 hover 状态
+        from PyQt5.QtWidgets import QApplication
+        global_pos = self.cursor().pos()
+        widget = QApplication.widgetAt(global_pos)
+        if widget == self._center_label:
+            self._center_label._update_style(True)
+            self._center_label._update_icon(True)
+        elif isinstance(widget, PieButton):
+            widget._update_style(True)
     
     def _apply_mask(self):
         """设置圆形 mask，将热区限制为可见内容区域"""
