@@ -1,0 +1,8 @@
+{
+  "name": "系统监视器",
+  "description": "打开系统资源监视器",
+  "icon": "utilities-system-monitor",
+  "exec": "deepin-system-monitor",
+  "type": "command",
+  "enabled": true
+}

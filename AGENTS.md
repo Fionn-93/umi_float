@@ -1,81 +1,94 @@
 # Developer Instructions
 
-## Runtime Requirements
+## Running the App
 
-**PYTHONPATH mandatory**: Must run with:
 ```bash
 PYTHONPATH=/path/to/umi_float:$PYTHONPATH python3 main.py
 ```
-Imports are relative to project root. App crashes without this.
 
-## Platform Dependencies
+All imports are relative to project root (e.g., `from core.config import get_config`). The app crashes without PYTHONPATH set.
 
-**Deepin Linux only**: Uses Deepin DBus:
-- `com.deepin.Screenshot` (screenshot plugin)
-- `org.deepin.dde.Display1` (screen info)
-- System tray requires `libayatana-appindicator3`
+## Platform
 
-## Architecture Patterns
+**Deepin Linux only.** Extensions shell out to Deepin apps (`deepin-calculator`, `dde-file-manager`, etc.) and the screenshot extension uses `qdbus com.deepin.Screenshot`. `utils/system_info.py` calls `org.deepin.dde.Display1` over DBus for screen info. System tray uses `QSystemTrayIcon` (may need `libayatana-appindicator3`).
 
-### ConfigManager Singleton (critical init order)
+## Dev Tools
+
+- Python 3.12, PyQt5 5.15.11
+- Formatter: `black` (line-length 88) | Typecheck: `mypy` | Lint: `pylint` | Test: `pytest` + `pytest-qt`
+- Config in `pyproject.toml`. No CI, no pre-commit hooks, no task runner scripts.
+- `./venv/` in repo root (gitignored).
+- `tests/` exists but contains only `__init__.py` — no actual tests yet.
+
+## Architecture
+
+### Entrypoint
+
+`main.py` → `Application` class creates `QApplication`, then `FloatWidget` (the ball), `PiePanel` (the popup menu), `TrayIcon`, and `PluginManager`. Signals wire them together.
+
+### Singletons (critical pattern)
+
+`ConfigManager`, `AppState`, and `PluginManager` all use the same hand-rolled singleton pattern where `__init__` early-returns if `_instance` is already set:
+
 ```python
-self._config = None  # MUST be first
-if ConfigManager._instance is not None:
-    return
+def __init__(self):
+    self._config = None  # MUST be first — accessed before _instance check returns
+    if ConfigManager._instance is not None:
+        return
+    ConfigManager._instance = self
 ```
-Otherwise causes `AttributeError: 'ConfigManager' object has no attribute '_config'`
 
-### Plugin Loader Checks Two Directories
-1. `~/.local/share/umi-float/extensions/` (user)
-2. `repo_root/extensions/` (development)
-Project extensions load second and override user plugins.
+Any instance attribute must be initialized **before** the `_instance` check, otherwise second calls to the constructor get an object without those attributes (`AttributeError`).
 
-### Manual Config Validation
-`pydantic>=2.12.0` in requirements but NOT used. Uses `ConfigManager._validate_config()`. Do not add pydantic.
+### Plugin System
 
-## Runtime Side Effects
+- Extensions are `manifest.json` files with `name`, `icon`, `exec`, `type`, `enabled` fields.
+- `PluginLoader.load_all_plugins()` reads two directories in order:
+  1. `~/.local/share/umi-float/extensions/` (user)
+  2. `<repo>/extensions/` (project — overrides user plugins with same directory name)
+- Execution: `subprocess.run(config.exec, shell=True, check=True)` — `shell=True` is required because some commands use `qdbus` with arguments.
+- `plugin_changed` signal exists on `PluginLoader` but is never connected to a `QFileSystemWatcher`. Hot reload is not implemented.
 
-On import, `constants.py` creates:
+### Import Side Effects
+
+Importing `core.constants` creates directories at module load time:
 - `~/.config/umi-float/`
 - `~/.local/share/umi-float/extensions/`
 
-## Application Lifecycle
+### Application Lifecycle
 
-`QApplication.setQuitOnLastWindowClosed(False)` - app stays alive via system tray. Closing float widget doesn't quit.
+`QApplication.setQuitOnLastWindowClosed(False)` — closing the float widget does not quit the app. Quit only via system tray menu.
 
-## Click vs Drag Detection (FloatWidget)
+### Dead Code
 
-FloatWidget uses distance-based threshold (10 pixels) to distinguish:
-- Mouse movement < 10px = click (emits `clicked` signal)
-- Mouse movement >= 10px = drag
+`ui/drawer_panel.py` (`DrawerPanel`) is unused. `main.py` imports `PiePanel` from `ui/pie_panel.py` and assigns it to `self.drawer_panel`. The old drawer panel is dead code.
 
-## Theme Adaptation (FloatButton)
+## UI Gotchas
 
-**Do not use stylesheets for background/text colors** - they don't stick. Use palette method:
+### Click vs Drag (FloatWidget)
+
+`FloatWidget` distinguishes clicks from drags using a 10-pixel `manhattanLength` threshold. Movement < 10px emits `clicked`; >= 10px emits `drag_started`. Edge snapping (20px threshold) runs on every mouse release.
+
+### Theme Colors (FloatButton)
+
+Do not use stylesheets alone for background/text colors — they don't reliably stick on this widget. Use `QPalette`:
 
 ```python
 new_palette = self.palette()
 new_palette.setColor(QPalette.Window, theme_bg)
 new_palette.setColor(QPalette.WindowText, theme_text)
-new_palette.setColor(QPalette.Button, theme_bg)
-new_palette.setColor(QPalette.ButtonText, theme_text)
 self.setPalette(new_palette)
 ```
 
-Combine with stylesheet for border/radius/font only. Theme detection uses `palette.color(QPalette.Window).lightness()`.
+Use stylesheets only for border, border-radius, and font. Theme detection: `palette.color(QPalette.Window).lightness() <= 128` means dark.
 
-**No shadow effects**: `QGraphicsDropShadowEffect` gets clipped to window boundary (rectangle), unsuitable for circular widgets.
+`QGraphicsDropShadowEffect` clips to the rectangular window boundary — unusable for the circular float ball.
 
-## Plugin Execution
+## Known Bug
 
-`subprocess.run(cmd, shell=True, check=True)` - `shell=True` required for DBus commands.
+`utils/system_info.py:is_dark_theme()` references `QPalette` but only imports `QGuiApplication` from `PyQt5.QtGui`. This method will raise `NameError` at runtime. Needs `from PyQt5.QtGui import QGuiApplication, QPalette`.
 
-## Current State
+## Config
 
-**Working**: Float widget, dragging, edge snapping (20px), drawer panel, system tray, plugins, config, theme adaptation.
-
-**Missing**: Plugin hot reload (signal defined but not connected to QFileSystemWatcher).
-
-## Dev Tools
-
-`./venv/` in repo root (unusual). Dev tools in requirements-dev (black, mypy, pylint, pytest) but no scripts/CI.
+- `pydantic>=2.12.0` is in `requirements.txt` but is **not used anywhere**. Config validation is manual in `ConfigManager._validate_config()`. Do not introduce pydantic models.
+- Config file: `~/.config/umi-float/config.json`. Written automatically on first run with defaults from `core/constants.py:DEFAULT_CONFIG`.

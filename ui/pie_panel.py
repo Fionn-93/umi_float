@@ -35,7 +35,7 @@ class PieButton(QLabel):
             # 考虑 HiDPI：乘以设备像素比获取高清 pixmap
             app = QApplication.instance()
             dpr = app.devicePixelRatio() if app else 1.0
-            icon_size = size - 8
+            icon_size = int(size * 0.618)  # 黄金比例
             pixmap = icon.pixmap(int(icon_size * dpr), int(icon_size * dpr))
             pixmap.setDevicePixelRatio(dpr)
             self.setPixmap(pixmap)
@@ -421,40 +421,5 @@ class PiePanel(QWidget):
         super().hideEvent(event)
     
     def paintEvent(self, event):
-        """绘制圆形背景"""
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        
-        # 获取主题
-        from PyQt5.QtWidgets import QApplication
-        from PyQt5.QtGui import QPalette
-        
-        app = QApplication.instance()
-        if app is None:
-            return
-        
-        palette = app.palette()
-        bg_color = palette.color(QPalette.Window)
-        is_dark = bg_color.lightness() <= 128
-        
-        # 创建径向渐变背景（更透明）
-        center = self.rect().center()
-        radius = min(self.width(), self.height()) // 2
-        
-        gradient = QRadialGradient(center, radius)
-        
-        if is_dark:
-            # 深色主题：更透明的深灰色背景
-            gradient.setColorAt(0.0, QColor(60, 60, 60, 120))
-            gradient.setColorAt(0.6, QColor(50, 50, 50, 80))
-            gradient.setColorAt(1.0, QColor(50, 50, 50, 0))
-        else:
-            # 浅色主题：更透明的白色背景
-            gradient.setColorAt(0.0, QColor(255, 255, 255, 150))
-            gradient.setColorAt(0.6, QColor(245, 245, 245, 100))
-            gradient.setColorAt(1.0, QColor(245, 245, 245, 0))
-        
-        # 绘制圆形背景
-        painter.setBrush(gradient)
-        painter.setPen(Qt.NoPen)
-        painter.drawEllipse(center, radius - 2, radius - 2)
+        """不绘制背景，保持完全透明"""
+        pass
