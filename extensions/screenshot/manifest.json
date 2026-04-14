@@ -1,0 +1,8 @@
+{
+  "name": "截图工具",
+  "description": "调用 Deepin 系统截图工具",
+  "icon": "camera-photo",
+  "exec": "qdbus com.deepin.Screenshot /com/deepin/Screenshot com.deepin.Screenshot.StartScreenshot",
+  "type": "command",
+  "enabled": true
+}

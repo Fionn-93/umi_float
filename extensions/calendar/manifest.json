@@ -1,0 +1,8 @@
+{
+  "name": "日历",
+  "description": "打开系统日历",
+  "icon": "x-office-calendar",
+  "exec": "deepin-calendar",
+  "type": "command",
+  "enabled": true
+}

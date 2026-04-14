@@ -1,0 +1,11 @@
+[tool.black]
+line-length = 88
+target-version = ['py312']
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pylint.messages_control]
+disable = ["C0111", "R0903"]

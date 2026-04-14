@@ -1,0 +1,8 @@
+{
+  "name": "设置",
+  "description": "打开系统设置",
+  "icon": "preferences-system",
+  "exec": "deepin-control-center",
+  "type": "command",
+  "enabled": true
+}
