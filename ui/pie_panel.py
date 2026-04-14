@@ -44,33 +44,20 @@ class PieButton(QLabel):
         # 设置样式
         self._update_style(False)
     
+    # 自定义主题色 - 清新配色方案
+    THEME_BG_NORMAL = QColor(240, 248, 255, 240)  # 爱丽丝蓝，95%透明度
+    THEME_BG_HOVERED = QColor(100, 149, 237, 220)  # 矢车菊蓝，悬停色
+    THEME_TEXT_NORMAL = QColor(70, 130, 180)  # 钢青色
+    THEME_TEXT_HOVERED = QColor(255, 255, 255)  # 白色
+    
     def _update_style(self, hovered: bool):
-        """更新样式"""
-        from PyQt5.QtGui import QPalette
-        from PyQt5.QtWidgets import QApplication
-        
-        app = QApplication.instance()
-        if app is None:
-            return
-        
-        palette = app.palette()
-        bg_color = palette.color(QPalette.Window)
-        is_dark = bg_color.lightness() <= 128
-        
-        if is_dark:
-            if hovered:
-                bg = QColor(74, 144, 226, 200)  # #4A90E2 with opacity
-                text = QColor(255, 255, 255)
-            else:
-                bg = QColor(40, 40, 40, 200)
-                text = QColor(135, 206, 250)
+        """更新样式 - 使用自定义主题色"""
+        if hovered:
+            bg = self.THEME_BG_HOVERED
+            text = self.THEME_TEXT_HOVERED
         else:
-            if hovered:
-                bg = QColor(74, 144, 226, 200)
-                text = QColor(255, 255, 255)
-            else:
-                bg = QColor(255, 255, 255, 240)
-                text = QColor(74, 144, 226)
+            bg = self.THEME_BG_NORMAL
+            text = self.THEME_TEXT_NORMAL
         
         self.setStyleSheet(f"""
             QLabel {{
@@ -149,29 +136,16 @@ class CenterButton(QLabel):
         self._update_style(False)
         self._update_icon(False)
     
+    # 自定义主题色 - 与 PieButton 保持一致
+    THEME_BG_NORMAL = QColor(240, 248, 255, 240)  # 爱丽丝蓝
+    THEME_BG_HOVERED = QColor(100, 149, 237, 220)  # 矢车菊蓝，悬停色
+    
     def _update_style(self, hovered: bool):
-        """更新样式"""
-        from PyQt5.QtGui import QPalette
-        from PyQt5.QtWidgets import QApplication
-        
-        app = QApplication.instance()
-        if app is None:
-            return
-        
-        palette = app.palette()
-        bg_color = palette.color(QPalette.Window)
-        is_dark = bg_color.lightness() <= 128
-        
-        if is_dark:
-            if hovered:
-                bg = QColor(74, 144, 226, 200)
-            else:
-                bg = QColor(40, 40, 40, 200)
+        """更新样式 - 使用自定义主题色"""
+        if hovered:
+            bg = self.THEME_BG_HOVERED
         else:
-            if hovered:
-                bg = QColor(74, 144, 226, 200)
-            else:
-                bg = QColor(255, 255, 255, 240)
+            bg = self.THEME_BG_NORMAL
         
         radius = self.size // 2
         self.setStyleSheet(f"""
@@ -182,23 +156,9 @@ class CenterButton(QLabel):
         """)
     
     def _update_icon(self, hovered: bool):
-        """更新图标"""
-        from PyQt5.QtGui import QPalette
-        from PyQt5.QtWidgets import QApplication
-        
-        app = QApplication.instance()
-        if app is None:
-            return
-        
-        palette = app.palette()
-        bg_color = palette.color(QPalette.Window)
-        is_dark = bg_color.lightness() <= 128
-        
-        # 根据主题选择图标文件
-        if hovered or is_dark:
-            icon_file = _get_assets_dir() / "arrow-go-back-line-white.svg"
-        else:
-            icon_file = _get_assets_dir() / "arrow-go-back-line-black.svg"
+        """更新图标 - 使用固定白色图标"""
+        # 始终使用白色图标
+        icon_file = _get_assets_dir() / "arrow-go-back-line-white.svg"
         
         # 渲染 SVG
         renderer = QSvgRenderer(str(icon_file))

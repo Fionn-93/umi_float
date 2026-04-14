@@ -66,11 +66,6 @@ class SystemInfo:
     
     @staticmethod
     def is_dark_theme() -> bool:
-        """检测是否为暗色主题"""
-        app = QGuiApplication.instance()
-        if app is None:
-            app = QGuiApplication([])
-        
-        palette = app.palette()
-        bg_color = palette.color(QPalette.Window)
-        return bg_color.lightness() <= 128
+        """检测是否为暗色主题 - 已弃用，应用使用固定主题色"""
+        # 返回 False 表示始终使用自定义亮色主题
+        return False
