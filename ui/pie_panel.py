@@ -434,9 +434,10 @@ class PiePanel(QWidget):
     def hideEvent(self, event):
         """隐藏事件 - 拦截 Popup 自动关闭，先播放收起动画"""
         if self._is_expanded and not self._is_collapsing:
-            # 阻止立即隐藏，先播放收起动画
             event.ignore()
             self._is_collapsing = True
+            # Qt Popup 会强制隐藏窗口，必须立即重新显示才能看到动画
+            QTimer.singleShot(0, self.show)
             self._collapse_animations(self._hide_immediate)
             return
         
