@@ -67,6 +67,19 @@ class FloatWidget(DraggableWidget):
         position = self.config.get()['position']
         self.move(position['x'], position['y'])
     
+    def apply_settings(self):
+        """应用配置变更（设置修改后调用）"""
+        cfg = self.config.get()
+        size = cfg['float_ball_size']
+        opacity = cfg['opacity']
+        self.resize(size, size)
+        self.setFixedSize(size, size)
+        self.setWindowOpacity(opacity)
+        self.ball.set_size(size)
+        self.ball.refresh_theme()
+        self.updateGeometry()
+        self.repaint()
+    
     def _on_drag(self, new_pos):
         """拖动回调"""
         pass

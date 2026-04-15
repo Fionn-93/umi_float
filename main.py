@@ -13,6 +13,7 @@ from core.constants import APP_NAME, APP_VERSION
 from ui.float_widget import FloatWidget
 from ui.tray_icon import TrayIcon
 from ui.pie_panel import PiePanel
+from ui.settings_dialog import SettingsDialog
 from plugins.plugin_manager import PluginManager
 
 
@@ -34,6 +35,7 @@ class Application:
         self.float_widget = FloatWidget()
         self.drawer_panel = PiePanel()
         self.tray_icon = TrayIcon()
+        self.settings_dialog = None
         
         # 连接信号
         self.tray_icon.show_hide_requested.connect(self._toggle_float_widget)
@@ -68,7 +70,21 @@ class Application:
     
     def _show_settings(self):
         """显示设置"""
-        print("设置功能待实现")
+        if self.settings_dialog is None or not self.settings_dialog.isVisible():
+            self.settings_dialog = SettingsDialog()
+            self.settings_dialog.settings_changed.connect(self._apply_settings)
+            self.settings_dialog.show()
+        else:
+            self.settings_dialog.raise_()
+            self.settings_dialog.activateWindow()
+    
+    def _apply_settings(self):
+        """应用设置变更"""
+        self.float_widget.apply_settings()
+        self.drawer_panel._center_label.refresh_theme()
+        for btn in self.drawer_panel._buttons:
+            btn.refresh_theme()
+        self.drawer_panel._refresh_plugins_ui()
     
     def _quit(self):
         """退出应用"""

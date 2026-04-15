@@ -9,6 +9,9 @@ from PyQt5.QtCore import Qt, pyqtSignal, pyqtProperty, QPropertyAnimation, QEasi
 from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QRadialGradient, QRegion, QPixmap
 from PyQt5.QtSvg import QSvgRenderer
 
+from core.config import get_config
+from utils.theme_colors import theme_from_hex
+
 
 class PieButton(QLabel):
     """环形菜单按钮"""
@@ -43,13 +46,22 @@ class PieButton(QLabel):
             self.setPixmap(pixmap)
         
         # 设置样式
+        self._apply_theme()
+    
+    def _apply_theme(self):
+        """从配置应用主题色"""
+        config = get_config()
+        theme_color = config.get().get('theme_color', '#6495ED')
+        colors = theme_from_hex(theme_color)
+        self.THEME_BG_NORMAL = colors['pie_bg_normal']
+        self.THEME_BG_HOVERED = colors['pie_bg_hovered']
+        self.THEME_TEXT_NORMAL = colors['pie_text_normal']
+        self.THEME_TEXT_HOVERED = colors['pie_text_hovered']
         self._update_style(False)
     
-    # 自定义主题色 - 清新配色方案
-    THEME_BG_NORMAL = QColor(240, 248, 255, 240)  # 爱丽丝蓝，95%透明度
-    THEME_BG_HOVERED = QColor(100, 149, 237, 220)  # 矢车菊蓝，悬停色
-    THEME_TEXT_NORMAL = QColor(70, 130, 180)  # 钢青色
-    THEME_TEXT_HOVERED = QColor(255, 255, 255)  # 白色
+    def refresh_theme(self):
+        """刷新主题色"""
+        self._apply_theme()
     
     def _update_style(self, hovered: bool):
         """更新样式 - 使用自定义主题色"""
@@ -137,12 +149,24 @@ class CenterButton(QLabel):
         self.setCursor(Qt.PointingHandCursor)
         self._hover_enabled = True
         
-        self._update_style(False)
+        self._apply_theme()
         self._update_icon(False)
     
-    # 自定义主题色 - 与 PieButton 保持一致
-    THEME_BG_NORMAL = QColor(240, 248, 255)  # 爱丽丝蓝（不透明）
-    THEME_BG_HOVERED = QColor(100, 149, 237)  # 矢车菊蓝，悬停色（不透明）
+    def _apply_theme(self):
+        """从配置应用主题色"""
+        config = get_config()
+        theme_color = config.get().get('theme_color', '#6495ED')
+        colors = theme_from_hex(theme_color)
+        self.THEME_BG_NORMAL = colors['center_bg_normal']
+        self.THEME_BG_HOVERED = colors['center_bg_hovered']
+        self._theme_icon_normal_color = colors['pie_text_normal']
+        self._theme_icon_hover_color = QColor(255, 255, 255)
+        self._update_style(False)
+    
+    def refresh_theme(self):
+        """刷新主题色"""
+        self._apply_theme()
+        self._update_icon(False)
     
     def _update_style(self, hovered: bool):
         """更新样式 - 使用自定义主题色"""
@@ -181,8 +205,8 @@ class CenterButton(QLabel):
         renderer = QSvgRenderer(str(icon_file))
         renderer.render(painter)
 
-        # 动态着色：hover 白色，正常钢青色
-        color = QColor(255, 255, 255) if hovered else QColor(70, 130, 180)
+        # 动态着色：hover 白色，正常时主题色
+        color = self._theme_icon_hover_color if hovered else self._theme_icon_normal_color
         painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
         painter.fillRect(pixmap.rect(), color)
         painter.end()
@@ -257,12 +281,16 @@ class PiePanel(QWidget):
             btn.deleteLater()
         self._buttons.clear()
         
+        config = get_config()
+        cfg = config.get()
+        button_size = cfg.get('pie_button_size', 56)
+        
         # 创建新按钮，作为 PiePanel 的子组件
         for plugin_id, plugin_config in self._plugins.items():
             icon_name = plugin_config.icon
             name = plugin_config.name
             
-            btn = PieButton(icon_name, name, size=56, parent=self)
+            btn = PieButton(icon_name, name, size=button_size, parent=self)
             btn.clicked.connect(partial(self._on_plugin_clicked, plugin_id))
             btn.hide()
             self._buttons.append(btn)
@@ -323,7 +351,8 @@ class PiePanel(QWidget):
         self._calculate_button_targets(relative_center_x, relative_center_y)
         
         # 先把按钮放在中心位置（动画起点）
-        button_radius = 56 // 2
+        cfg = get_config().get()
+        button_radius = cfg.get('pie_button_size', 56) // 2
         for btn in self._buttons:
             btn._set_scale(0.0)
             btn.move(
@@ -346,9 +375,10 @@ class PiePanel(QWidget):
             return
         
         # 计算环形布局参数
-        button_radius = 56 // 2  # 按钮半径
-        center_label_radius = 40   # 中心标签半径
-        spacing = 10               # 按钮间距
+        cfg = get_config().get()
+        button_radius = cfg.get('pie_button_size', 56) // 2  # 按钮半径
+        center_label_radius = self._center_label.width() // 2   # 中心标签半径
+        spacing = cfg.get('pie_spacing', 10)               # 按钮间距
         
         # 计算外圆半径
         if num_buttons == 1:
@@ -399,7 +429,7 @@ class PiePanel(QWidget):
             anim.deleteLater()
         self._animation_group.clear()
         
-        button_radius = 56 // 2
+        button_radius = get_config().get().get('pie_button_size', 56) // 2
         center_start = QPoint(
             int(self._center_pos.x() - button_radius),
             int(self._center_pos.y() - button_radius)
@@ -453,7 +483,7 @@ class PiePanel(QWidget):
     
     def _apply_mask(self):
         """设置圆形 mask，将热区限制为可见内容区域"""
-        button_radius = 56 // 2
+        button_radius = get_config().get().get('pie_button_size', 56) // 2
         # mask 半径 = 环形布局半径 + 按钮半径 + 少量 padding
         mask_radius = int(self._pie_radius + button_radius + 8)
         cx = self._center_pos.x()
@@ -475,7 +505,7 @@ class PiePanel(QWidget):
             anim.deleteLater()
         self._animation_group.clear()
         
-        button_radius = 56 // 2
+        button_radius = get_config().get().get('pie_button_size', 56) // 2
         center_target = QPoint(
             int(self._center_pos.x() - button_radius),
             int(self._center_pos.y() - button_radius)

@@ -5,23 +5,20 @@ from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import Qt, QTimer, QTime
 from PyQt5.QtGui import QColor, QFont
 
+from core.config import get_config
+from utils.theme_colors import theme_from_hex
+
 
 class FloatButton(QLabel):
     """圆形悬浮球按钮"""
-    
-    # 自定义主题色 - 清新蓝色系
-    THEME_BG = QColor(100, 149, 237, 242)  # 矢车菊蓝，95%透明度
-    THEME_TEXT = QColor(255, 255, 255)  # 白色文字
-    THEME_BORDER = QColor(70, 130, 180)  # 钢青色边框
-    
+
     def __init__(self, size: int = 56, parent=None):
         super().__init__(parent)
         self.size = size
         self.setFixedSize(size, size)
         self.setAlignment(Qt.AlignCenter)
         
-        # 初始化样式
-        self._update_style()
+        self._apply_theme()
         
         # 设置时钟
         self.timer = QTimer(self)
@@ -29,6 +26,16 @@ class FloatButton(QLabel):
         self.timer.start(1000)
         
         self.update_time()
+    
+    def _apply_theme(self):
+        """从配置应用主题色"""
+        config = get_config()
+        theme_color = config.get().get('theme_color', '#6495ED')
+        colors = theme_from_hex(theme_color)
+        self.THEME_BG = colors['float_bg']
+        self.THEME_TEXT = colors['float_text']
+        self.THEME_BORDER = colors['float_border']
+        self._update_style()
     
     def _update_style(self):
         """使用自定义主题色更新样式"""
@@ -44,6 +51,18 @@ class FloatButton(QLabel):
             font-size: {font_size}px;
             font-weight: bold;
         """)
+    
+    def refresh_theme(self):
+        """刷新主题色（配置变更后调用）"""
+        self._apply_theme()
+        self.update()
+    
+    def set_size(self, size: int):
+        """更新悬浮球大小"""
+        self.size = size
+        self.setFixedSize(size, size)
+        self._update_style()
+        self.update()
     
     def update_time(self):
         """更新时间显示"""
