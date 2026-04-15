@@ -244,6 +244,7 @@ class PiePanel(QWidget):
     """环形菜单面板"""
     
     plugin_executed = pyqtSignal(str)
+    panel_closed = pyqtSignal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -636,6 +637,7 @@ class PiePanel(QWidget):
         self._is_collapsing = False
         self.clearMask()
         self.hide()
+        self.panel_closed.emit()
     
     def hideEvent(self, event):
         """隐藏事件 - 拦截 Popup 自动关闭，先播放收起动画"""

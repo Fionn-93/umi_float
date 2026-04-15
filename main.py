@@ -47,6 +47,7 @@ class Application:
         self.float_widget.drag_started.connect(self.drawer_panel.hide_panel)
         
         self.drawer_panel.plugin_executed.connect(self._execute_plugin)
+        self.drawer_panel.panel_closed.connect(self._on_panel_closed)
         
         # 加载插件到面板
         self.plugin_manager.initialize()
@@ -109,7 +110,12 @@ class Application:
         if self.drawer_panel.isVisible():
             self.drawer_panel.hide_panel()
         else:
+            self.float_widget.hide()
             self.drawer_panel.show_panel(self.float_widget)
+    
+    def _on_panel_closed(self):
+        """面板关闭后恢复悬浮球"""
+        self.float_widget.show()
     
     def _show_context_menu(self):
         """显示右键菜单"""
