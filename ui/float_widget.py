@@ -56,8 +56,10 @@ class FloatWidget(DraggableWidget):
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         
-        size = self.config.get()['float_ball_size']
+        cfg = self.config.get()
+        size = cfg['float_ball_size']
         self.ball = FloatButton(size=size)
+        self.ball.set_mode(cfg['display_mode'])
         layout.addWidget(self.ball)
         
         self.setLayout(layout)
@@ -86,6 +88,7 @@ class FloatWidget(DraggableWidget):
         
         self.ball.set_size(size)
         self.ball.refresh_theme()
+        self.ball.set_mode(cfg['display_mode'])
         self.updateGeometry()
         self.repaint()
     

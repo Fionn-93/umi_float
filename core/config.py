@@ -58,6 +58,10 @@ class ConfigManager:
             except Exception:
                 pass
         
+        if 'display_mode' in data and isinstance(data['display_mode'], str):
+            if data['display_mode'] in ('clock', 'memory', 'weather'):
+                config['display_mode'] = data['display_mode']
+        
         if 'pie_button_size' in data and isinstance(data['pie_button_size'], int):
             config['pie_button_size'] = max(32, min(100, data['pie_button_size']))
         

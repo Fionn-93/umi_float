@@ -24,6 +24,7 @@ DEFAULT_CONFIG = {
     "opacity": 0.9,
     "float_ball_size": 56,
     "theme_color": "#6495ED",
+    "display_mode": "clock",
     "pie_button_size": 56,
     "pie_spacing": 10,
     "auto_start": False,

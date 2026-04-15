@@ -4,7 +4,7 @@
 from PyQt5.QtWidgets import (
     QDialog, QHBoxLayout, QVBoxLayout, QListWidget, QListWidgetItem,
     QStackedWidget, QLabel, QSlider, QPushButton, QWidget, QColorDialog,
-    QFrame, QScrollArea, QSizePolicy,
+    QFrame, QScrollArea, QSizePolicy, QComboBox,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QColor, QFont
@@ -176,6 +176,27 @@ class PersonalizePage(QWidget):
 
         # 外观组
         group1 = _GroupWidget("外观")
+        self.display_mode_combo = QComboBox()
+        self.display_mode_combo.addItems(["时钟", "内存", "天气"])
+        self.display_mode_combo.setCurrentText({"clock": "时钟", "memory": "内存", "weather": "天气"}.get(cfg.get('display_mode', 'clock'), "时钟"))
+        self.display_mode_combo.currentIndexChanged.connect(self._on_display_mode_changed)
+        self.display_mode_combo.setObjectName("displayModeCombo")
+        self.display_mode_combo.setStyleSheet("""
+            #displayModeCombo {
+                border: 1px solid #d0d0d0;
+                border-radius: 4px;
+                padding: 4px 8px;
+                background: #ffffff;
+                color: #1d1d1f;
+                font-size: 13px;
+                min-width: 100px;
+            }
+            #displayModeComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+        """)
+        group1.add_row(_SettingRow("显示模式", self.display_mode_combo))
         self.color_btn = _ColorButton(cfg.get('theme_color', '#6495ED'))
         self.color_btn.color_changed.connect(self._on_theme_color_changed)
         group1.add_row(_SettingRow("主题色", self.color_btn))
@@ -213,6 +234,12 @@ class PersonalizePage(QWidget):
 
     def _on_theme_color_changed(self, hex_color):
         self.config.update(theme_color=hex_color)
+        self.dialog.settings_changed.emit('float_ball')
+
+    def _on_display_mode_changed(self, index):
+        mode_map = {0: 'clock', 1: 'memory', 2: 'weather'}
+        mode = mode_map.get(index, 'clock')
+        self.config.update(display_mode=mode)
         self.dialog.settings_changed.emit('float_ball')
 
     def _on_size_changed(self, value):
