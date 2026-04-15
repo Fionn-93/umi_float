@@ -1,12 +1,12 @@
 """
-设置对话框
+设置对话框 - macOS 系统偏好设置风格
 """
 from PyQt5.QtWidgets import (
     QDialog, QHBoxLayout, QVBoxLayout, QListWidget, QListWidgetItem,
     QStackedWidget, QLabel, QSlider, QPushButton, QWidget, QColorDialog,
-    QFrame, QSizePolicy,
+    QFrame, QScrollArea, QSizePolicy,
 )
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QColor, QFont
 
 from core.config import get_config
@@ -19,74 +19,133 @@ class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.config = get_config()
+        self._drag_pos = None
+        self._is_dragging = False
         self._init_ui()
 
     def _init_ui(self):
         self.setWindowTitle("设置")
-        self.setMinimumSize(600, 420)
-        self.resize(640, 440)
+        self.setWindowFlags(Qt.Dialog | Qt.WindowStaysOnTopHint)
+        self.setMinimumSize(640, 440)
+        self.resize(660, 460)
 
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
+        # 左侧导航
         self.nav_list = QListWidget()
-        self.nav_list.setFixedWidth(120)
+        self.nav_list.setObjectName("navList")
+        self.nav_list.setFixedWidth(150)
         self.nav_list.setCurrentRow(0)
         self.nav_list.currentRowChanged.connect(self._switch_page)
+        self.nav_list.setStyleSheet("""
+            #navList {
+                background-color: #f6f6f6;
+                border: none;
+                border-right: 1px solid #e0e0e0;
+                outline: none;
+                font-size: 13px;
+                padding: 8px 0px;
+            }
+            #navList::item {
+                padding: 10px 16px;
+                border: none;
+                border-radius: 6px;
+                margin: 2px 8px;
+                color: #555;
+            }
+            #navList::item:selected {
+                background-color: #ffffff;
+                color: #1d1d1f;
+                font-weight: 500;
+            }
+            #navList::item:hover:!selected {
+                background-color: #ebebeb;
+            }
+        """)
 
+        # 右侧内容区
         self.stack = QStackedWidget()
+        self.stack.setObjectName("settingsStack")
 
         self.personalize_page = PersonalizePage(self)
         self.extensions_page = ExtensionsPage(self)
 
         nav_items = [
-            ("个性化", self.personalize_page),
-            ("扩展", self.extensions_page),
+            "⚙  个性化",
+            "🧩  扩展",
         ]
-        for name, page in nav_items:
+        for name in nav_items:
             item = QListWidgetItem(name)
+            item.setSizeHint(QSize(0, 36))
             self.nav_list.addItem(item)
-            self.stack.addWidget(page)
 
-        layout.addWidget(self.nav_list)
-        separator = QFrame()
-        separator.setFrameShape(QFrame.VLine)
-        separator.setFrameShadow(QFrame.Sunken)
-        layout.addWidget(separator)
-        layout.addWidget(self.stack, 1)
+        self.stack.addWidget(self.personalize_page)
+        self.stack.addWidget(self.extensions_page)
 
-        self.setStyleSheet(self._dialog_style())
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(0)
+        body.addWidget(self.nav_list)
+        body.addWidget(self.stack, 1)
+
+        main_layout.addLayout(body)
 
     def _switch_page(self, row):
         self.stack.setCurrentIndex(row)
 
-    def _dialog_style(self):
-        return """
-            QDialog {
-                background-color: #f5f5f5;
-            }
-            QListWidget {
-                background-color: #e8e8e8;
-                border: none;
-                outline: none;
-                font-size: 13px;
-                padding: 8px 0px;
-            }
-            QListWidget::item {
-                padding: 12px 16px;
-                border: none;
-                color: #333;
-            }
-            QListWidget::item:selected {
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._drag_pos = event.globalPos() - self.frameGeometry().topLeft()
+            self._is_dragging = True
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._is_dragging and event.buttons() & Qt.LeftButton:
+            self.move(event.globalPos() - self._drag_pos)
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self._is_dragging = False
+        super().mouseReleaseEvent(event)
+
+
+class _GroupWidget(QWidget):
+    """macOS 风格分组容器 - 白色圆角卡片"""
+
+    def __init__(self, title="", parent=None):
+        super().__init__(parent)
+        self.setObjectName("groupWidget")
+        self.setStyleSheet("""
+            #groupWidget {
                 background-color: #ffffff;
-                color: #1976D2;
-                font-weight: bold;
+                border: 1px solid #e5e5e5;
+                border-radius: 8px;
             }
-            QListWidget::item:hover {
-                background-color: #dcdcdc;
-            }
-        """
+        """)
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(0)
+
+        if title:
+            title_label = QLabel(title)
+            title_label.setStyleSheet("color: #888; font-size: 11px; padding: 10px 16px 2px 16px; background: transparent;")
+            self._layout.addWidget(title_label)
+
+        self._row_container = QVBoxLayout()
+        self._row_container.setContentsMargins(16, 8, 16, 8)
+        self._row_container.setSpacing(0)
+        self._layout.addLayout(self._row_container)
+
+    def add_row(self, widget):
+        if self._row_container.count() > 0:
+            sep = QFrame()
+            sep.setFrameShape(QFrame.HLine)
+            sep.setFixedHeight(1)
+            sep.setStyleSheet("background-color: #f0f0f0; border: none;")
+            self._row_container.addWidget(sep)
+        self._row_container.addWidget(widget)
 
 
 class PersonalizePage(QWidget):
@@ -97,67 +156,60 @@ class PersonalizePage(QWidget):
         self._init_ui()
 
     def _init_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(20)
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet("QScrollArea { background-color: #f6f6f6; border: none; }")
+
+        content = QWidget()
+        content.setStyleSheet("background-color: #f6f6f6;")
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(14)
 
         title = QLabel("个性化")
-        title.setFont(QFont("", 15, QFont.Bold))
-        title.setStyleSheet("color: #333;")
+        title.setFont(QFont("", 16, QFont.Bold))
+        title.setStyleSheet("color: #1d1d1f; background: transparent;")
         layout.addWidget(title)
 
-        config = self.config.get()
+        cfg = self.config.get()
 
-        # 主题色
-        self.color_btn = _ColorButton(config.get('theme_color', '#6495ED'))
+        # 外观组
+        group1 = _GroupWidget("外观")
+        self.color_btn = _ColorButton(cfg.get('theme_color', '#6495ED'))
         self.color_btn.color_changed.connect(self._on_theme_color_changed)
-        row = _make_row("主题色", self.color_btn)
-        layout.addWidget(row)
+        group1.add_row(_SettingRow("主题色", self.color_btn))
+        layout.addWidget(group1)
 
-        # 悬浮球大小
-        self.size_slider = _LabeledSlider(
-            "悬浮球大小", 32, 128,
-            config.get('float_ball_size', 56),
-            suffix=" px",
-        )
+        # 悬浮球组
+        group2 = _GroupWidget("悬浮球")
+        self.size_slider = _LabeledSlider("大小", 32, 128, cfg.get('float_ball_size', 56), suffix=" px")
         self.size_slider.value_changed.connect(self._on_size_changed)
-        layout.addWidget(self.size_slider)
+        group2.add_row(_SettingRow("悬浮球大小", self.size_slider))
 
-        # 透明度
-        self.opacity_slider = _LabeledSlider(
-            "透明度", 10, 100,
-            int(config.get('opacity', 0.9) * 100),
-            suffix="%",
-            scale=0.01,
-        )
+        self.opacity_slider = _LabeledSlider("透明度", 10, 100, int(cfg.get('opacity', 0.9) * 100), suffix="%", scale=0.01)
         self.opacity_slider.value_changed.connect(self._on_opacity_changed)
-        layout.addWidget(self.opacity_slider)
+        group2.add_row(_SettingRow("透明度", self.opacity_slider))
+        layout.addWidget(group2)
 
-        # 面板按钮大小
-        self.pie_btn_slider = _LabeledSlider(
-            "面板按钮大小", 32, 128,
-            config.get('pie_button_size', 56),
-            suffix=" px",
-        )
+        # 扩展面板组
+        group3 = _GroupWidget("扩展面板")
+        self.pie_btn_slider = _LabeledSlider("图标大小", 32, 128, cfg.get('pie_button_size', 56), suffix=" px")
         self.pie_btn_slider.value_changed.connect(self._on_pie_btn_size_changed)
-        layout.addWidget(self.pie_btn_slider)
+        group3.add_row(_SettingRow("扩展图标大小", self.pie_btn_slider))
 
-        # 面板间距
-        self.spacing_slider = _LabeledSlider(
-            "面板间距", 0, 30,
-            config.get('pie_spacing', 10),
-            suffix=" px",
-        )
+        self.spacing_slider = _LabeledSlider("间距", 0, 30, cfg.get('pie_spacing', 10), suffix=" px")
         self.spacing_slider.value_changed.connect(self._on_spacing_changed)
-        layout.addWidget(self.spacing_slider)
+        group3.add_row(_SettingRow("面板间距", self.spacing_slider))
+        layout.addWidget(group3)
 
         layout.addStretch()
 
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #ffffff;
-            }
-        """)
+        scroll.setWidget(content)
+
+        page_layout = QVBoxLayout(self)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.addWidget(scroll)
 
     def _on_theme_color_changed(self, hex_color):
         self.config.update(theme_color=hex_color)
@@ -184,42 +236,53 @@ class ExtensionsPage(QWidget):
     def __init__(self, parent):
         super().__init__()
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setContentsMargins(20, 20, 20, 20)
 
         title = QLabel("扩展管理")
-        title.setFont(QFont("", 15, QFont.Bold))
-        title.setStyleSheet("color: #333;")
+        title.setFont(QFont("", 16, QFont.Bold))
+        title.setStyleSheet("color: #1d1d1f; background: transparent;")
         layout.addWidget(title)
 
+        group = _GroupWidget()
         placeholder = QLabel("扩展管理功能待实现")
         placeholder.setAlignment(Qt.AlignCenter)
-        placeholder.setStyleSheet("color: #999; font-size: 14px; padding: 40px;")
-        layout.addWidget(placeholder, 1)
+        placeholder.setStyleSheet("color: #999; font-size: 13px; padding: 40px 16px; background: transparent;")
+        group._row_container.addWidget(placeholder)
+        layout.addWidget(group)
+        layout.addStretch()
 
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #ffffff;
-            }
-        """)
+        self.setStyleSheet("background-color: #f6f6f6;")
 
 
-class _ColorButton(QPushButton):
+class _ColorButton(QWidget):
     color_changed = pyqtSignal(str)
 
     def __init__(self, hex_color: str, parent=None):
         super().__init__(parent)
         self._color = hex_color
-        self.setFixedSize(48, 28)
-        self.setCursor(Qt.PointingHandCursor)
-        self.clicked.connect(self._pick_color)
-        self._update_style()
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
 
-    def _update_style(self):
-        self.setStyleSheet(f"""
+        self._swatch = QPushButton()
+        self._swatch.setFixedSize(26, 26)
+        self._swatch.setCursor(Qt.PointingHandCursor)
+        self._swatch.clicked.connect(self._pick_color)
+        self._update_swatch_style()
+
+        self._hex_label = QLabel(hex_color)
+        self._hex_label.setStyleSheet("color: #888; font-size: 12px; font-family: monospace; background: transparent;")
+
+        layout.addWidget(self._swatch)
+        layout.addWidget(self._hex_label)
+        layout.addStretch()
+
+    def _update_swatch_style(self):
+        self._swatch.setStyleSheet(f"""
             QPushButton {{
                 background-color: {self._color};
-                border: 2px solid #ccc;
-                border-radius: 4px;
+                border: 2px solid #d0d0d0;
+                border-radius: 6px;
             }}
             QPushButton:hover {{
                 border-color: #999;
@@ -231,7 +294,8 @@ class _ColorButton(QPushButton):
         color = QColorDialog.getColor(current, self, "选择主题色")
         if color.isValid():
             self._color = color.name()
-            self._update_style()
+            self._update_swatch_style()
+            self._hex_label.setText(self._color)
             self.color_changed.emit(self._color)
 
 
@@ -242,35 +306,37 @@ class _LabeledSlider(QWidget):
         super().__init__(parent)
         self._scale = scale
         self._suffix = suffix
+
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-
-        name_label = QLabel(label)
-        name_label.setFixedWidth(120)
-        name_label.setStyleSheet("font-size: 13px; color: #333;")
-        layout.addWidget(name_label)
+        layout.setSpacing(10)
 
         self.slider = QSlider(Qt.Horizontal)
         self.slider.setRange(min_val, max_val)
         self.slider.blockSignals(True)
         self.slider.setValue(default)
         self.slider.blockSignals(False)
+        self.slider.setObjectName("macSlider")
         self.slider.setStyleSheet("""
-            QSlider::groove:horizontal {
-                height: 6px;
-                background: #ddd;
-                border-radius: 3px;
+            #macSlider::groove:horizontal {
+                height: 4px;
+                background: #d0d0d0;
+                border-radius: 2px;
             }
-            QSlider::handle:horizontal {
-                width: 16px;
-                height: 16px;
+            #macSlider::handle:horizontal {
+                width: 14px;
+                height: 14px;
                 margin: -5px 0;
-                background: #1976D2;
-                border-radius: 8px;
+                background: #ffffff;
+                border: 1px solid #c0c0c0;
+                border-radius: 7px;
             }
-            QSlider::sub-page:horizontal {
+            #macSlider::handle:horizontal:hover {
+                border-color: #999;
+            }
+            #macSlider::sub-page:horizontal {
                 background: #1976D2;
-                border-radius: 3px;
+                border-radius: 2px;
             }
         """)
         layout.addWidget(self.slider, 1)
@@ -280,9 +346,9 @@ class _LabeledSlider(QWidget):
         else:
             display_text = f"{default * scale:.2f}{suffix}"
         self.value_label = QLabel(display_text)
-        self.value_label.setFixedWidth(64)
+        self.value_label.setFixedWidth(56)
         self.value_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.value_label.setStyleSheet("font-size: 13px; color: #555;")
+        self.value_label.setStyleSheet("color: #1d1d1f; font-size: 12px; font-family: monospace; background: transparent;")
         layout.addWidget(self.value_label)
 
         self.slider.valueChanged.connect(self._on_value_changed)
@@ -295,14 +361,17 @@ class _LabeledSlider(QWidget):
         self.value_changed.emit(val)
 
 
-def _make_row(label_text, widget):
-    row = QWidget()
-    layout = QHBoxLayout(row)
-    layout.setContentsMargins(0, 0, 0, 0)
-    name_label = QLabel(label_text)
-    name_label.setFixedWidth(120)
-    name_label.setStyleSheet("font-size: 13px; color: #333;")
-    layout.addWidget(name_label)
-    layout.addWidget(widget)
-    layout.addStretch()
-    return row
+class _SettingRow(QWidget):
+    """macOS 风格设置行：左侧标签 + 右侧控件"""
+
+    def __init__(self, label_text, control_widget, parent=None):
+        super().__init__(parent)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 4, 0, 4)
+        layout.setSpacing(12)
+
+        label = QLabel(label_text)
+        label.setFixedWidth(120)
+        label.setStyleSheet("color: #1d1d1f; font-size: 13px; background: transparent;")
+        layout.addWidget(label)
+        layout.addWidget(control_widget, 1)
