@@ -73,18 +73,27 @@ class Application:
         if self.settings_dialog is None or not self.settings_dialog.isVisible():
             self.settings_dialog = SettingsDialog()
             self.settings_dialog.settings_changed.connect(self._apply_settings)
+            self.settings_dialog.finished.connect(self._on_settings_closed)
             self.settings_dialog.show()
         else:
             self.settings_dialog.raise_()
             self.settings_dialog.activateWindow()
     
-    def _apply_settings(self):
+    def _on_settings_closed(self):
+        """设置窗口关闭时退出预览模式"""
+        self.drawer_panel.exit_preview_mode()
+    
+    def _apply_settings(self, target):
         """应用设置变更"""
         self.float_widget.apply_settings()
-        self.drawer_panel._center_label.refresh_theme()
-        for btn in self.drawer_panel._buttons:
-            btn.refresh_theme()
-        self.drawer_panel._refresh_plugins_ui()
+        if target == 'float_ball':
+            if self.drawer_panel._preview_mode:
+                self.drawer_panel.exit_preview_mode()
+        elif target == 'pie_panel':
+            if self.drawer_panel._preview_mode:
+                self.drawer_panel.refresh_preview_layout(self.float_widget)
+            else:
+                self.drawer_panel.enter_preview_mode(self.float_widget)
     
     def _quit(self):
         """退出应用"""

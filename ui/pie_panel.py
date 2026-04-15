@@ -242,6 +242,7 @@ class PiePanel(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._preview_mode = False
         self._setup_window()
         self._setup_ui()
         
@@ -249,17 +250,15 @@ class PiePanel(QWidget):
         self._buttons = []
         self._button_targets = []
         self._center_pos = QPoint(200, 200)
-        self._pie_radius = 0  # 环形布局半径，用于计算 mask
+        self._pie_radius = 0
         self._animation_group = []
         self._is_expanded = False
-        self._is_collapsing = False  # 正在播放收起动画
+        self._is_collapsing = False
     
     def _setup_window(self):
         """设置窗口属性"""
         self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        
-        # 面板大小，根据需要调整
         self.setFixedSize(400, 400)
     
     def _setup_ui(self):
@@ -299,12 +298,68 @@ class PiePanel(QWidget):
     
     def _on_plugin_clicked(self, plugin_id: str):
         """插件点击"""
+        if self._preview_mode:
+            return
         self.plugin_executed.emit(plugin_id)
         self.hide_panel()
     
-    def show_panel(self, parent_widget):
+    def enter_preview_mode(self, parent_widget):
+        """进入预览模式：展开面板供设置预览，禁用交互"""
+        if self._preview_mode:
+            return
+        self._preview_mode = True
+        self._stop_all_animations()
+        self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self._refresh_plugins_ui()
+        self._center_label.refresh_theme()
+        for btn in self._buttons:
+            btn.refresh_theme()
+        self.show_panel(parent_widget, animate=True)
+        for btn in self._buttons:
+            btn._hover_enabled = False
+        self._center_label._hover_enabled = False
+    
+    def exit_preview_mode(self):
+        """退出预览模式：恢复 Popup 标志并隐藏面板"""
+        if not self._preview_mode:
+            return
+        self._preview_mode = False
+        self._stop_all_animations()
+        self._is_expanded = False
+        self._is_collapsing = False
+        self.clearMask()
+        self.hide()
+        self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        for btn in self._buttons:
+            btn._hover_enabled = True
+        self._center_label._hover_enabled = True
+    
+    def refresh_preview_layout(self, parent_widget):
+        """预览模式下刷新布局（无动画直接重排）"""
+        if not self._preview_mode:
+            return
+        self._stop_all_animations()
+        self._refresh_plugins_ui()
+        self._center_label.refresh_theme()
+        for btn in self._buttons:
+            btn.refresh_theme()
+        self.show_panel(parent_widget, animate=False)
+        for btn in self._buttons:
+            btn._hover_enabled = False
+        self._center_label._hover_enabled = False
+    
+    def _stop_all_animations(self):
+        """停止所有动画"""
+        for anim in self._animation_group:
+            anim.stop()
+            anim.deleteLater()
+        self._animation_group.clear()
+    
+    def show_panel(self, parent_widget, animate=True):
         """显示面板"""
-        self.clearMask()  # 清除 mask，确保动画过程中按钮可正常显示
+        self.clearMask()
         
         parent_pos = parent_widget.pos()
         parent_size = parent_widget.size()
@@ -313,16 +368,13 @@ class PiePanel(QWidget):
         screen = parent_widget.screen()
         screen_rect = screen.availableGeometry()
         
-        # 计算中心位置（悬浮球中心，屏幕坐标）
         center_x = parent_pos.x() + parent_radius
         center_y = parent_pos.y() + parent_radius
         
-        # 计算面板位置，使悬浮球在面板中心
         panel_radius = self.width() // 2
         panel_x = center_x - panel_radius
         panel_y = center_y - panel_radius
         
-        # 边界检测
         if panel_x < screen_rect.left():
             panel_x = screen_rect.left()
         if panel_y < screen_rect.top():
@@ -334,12 +386,10 @@ class PiePanel(QWidget):
         
         self.move(panel_x, panel_y)
         
-        # 计算中心点相对于面板的坐标
         relative_center_x = center_x - panel_x
         relative_center_y = center_y - panel_y
         self._center_pos = QPoint(int(relative_center_x), int(relative_center_y))
         
-        # 移动中心标签
         center_label_radius = self._center_label.width() // 2
         self._center_label.move(
             int(relative_center_x - center_label_radius),
@@ -347,25 +397,33 @@ class PiePanel(QWidget):
         )
         self._center_label.show()
         
-        # 计算按钮目标位置（使用面板内相对坐标）
         self._calculate_button_targets(relative_center_x, relative_center_y)
         
-        # 先把按钮放在中心位置（动画起点）
         cfg = get_config().get()
         button_radius = cfg.get('pie_button_size', 56) // 2
-        for btn in self._buttons:
-            btn._set_scale(0.0)
-            btn.move(
-                int(relative_center_x - button_radius),
-                int(relative_center_y - button_radius)
-            )
-            btn.show()
         
-        # 显示面板
-        self.show()
-        
-        # 启动展开动画
-        self._expand_animations()
+        if animate:
+            for btn in self._buttons:
+                btn._set_scale(0.0)
+                btn.move(
+                    int(relative_center_x - button_radius),
+                    int(relative_center_y - button_radius)
+                )
+                btn.show()
+            self.show()
+            self._expand_animations()
+        else:
+            for i, btn in enumerate(self._buttons):
+                btn._set_scale(1.0)
+                if i < len(self._button_targets):
+                    btn.move(self._button_targets[i])
+                btn.show()
+            self._is_expanded = True
+            self._center_label._hover_enabled = not self._preview_mode
+            for btn in self._buttons:
+                btn._hover_enabled = not self._preview_mode
+            self.show()
+            self._apply_mask()
     
     def _calculate_button_targets(self, center_x: float, center_y: float):
         """计算按钮的目标位置（面板内相对坐标）"""
@@ -468,10 +526,12 @@ class PiePanel(QWidget):
     def _on_expand_finished(self):
         """展开动画结束后恢复 hover 并检测鼠标位置"""
         for btn in self._buttons:
-            btn._hover_enabled = True
-        self._center_label._hover_enabled = True
+            btn._hover_enabled = not self._preview_mode
+        self._center_label._hover_enabled = not self._preview_mode
         
         # 检测鼠标下方的组件，应用正确的 hover 状态
+        if self._preview_mode:
+            return
         from PyQt5.QtWidgets import QApplication
         global_pos = self.cursor().pos()
         widget = QApplication.widgetAt(global_pos)
@@ -540,6 +600,8 @@ class PiePanel(QWidget):
     
     def hide_panel(self):
         """隐藏面板"""
+        if self._preview_mode:
+            return
         if not self.isVisible() or self._is_collapsing:
             return
         
@@ -558,6 +620,9 @@ class PiePanel(QWidget):
     
     def hideEvent(self, event):
         """隐藏事件 - 拦截 Popup 自动关闭，先播放收起动画"""
+        if self._preview_mode:
+            super().hideEvent(event)
+            return
         if self._is_expanded and not self._is_collapsing:
             event.ignore()
             self._is_collapsing = True

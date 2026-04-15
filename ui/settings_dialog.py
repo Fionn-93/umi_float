@@ -14,7 +14,7 @@ from utils.theme_colors import theme_from_hex
 
 
 class SettingsDialog(QDialog):
-    settings_changed = pyqtSignal()
+    settings_changed = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -161,23 +161,23 @@ class PersonalizePage(QWidget):
 
     def _on_theme_color_changed(self, hex_color):
         self.config.update(theme_color=hex_color)
-        self.dialog.settings_changed.emit()
+        self.dialog.settings_changed.emit('float_ball')
 
     def _on_size_changed(self, value):
         self.config.update(float_ball_size=value)
-        self.dialog.settings_changed.emit()
+        self.dialog.settings_changed.emit('float_ball')
 
     def _on_opacity_changed(self, value):
         self.config.update(opacity=round(value * 0.01, 2))
-        self.dialog.settings_changed.emit()
+        self.dialog.settings_changed.emit('float_ball')
 
     def _on_pie_btn_size_changed(self, value):
         self.config.update(pie_button_size=value)
-        self.dialog.settings_changed.emit()
+        self.dialog.settings_changed.emit('pie_panel')
 
     def _on_spacing_changed(self, value):
         self.config.update(pie_spacing=value)
-        self.dialog.settings_changed.emit()
+        self.dialog.settings_changed.emit('pie_panel')
 
 
 class ExtensionsPage(QWidget):

@@ -72,9 +72,18 @@ class FloatWidget(DraggableWidget):
         cfg = self.config.get()
         size = cfg['float_ball_size']
         opacity = cfg['opacity']
+        
+        old_size = self.width()
+        center = self.pos()
+        center_x = center.x() + old_size // 2
+        center_y = center.y() + old_size // 2
+        
         self.resize(size, size)
         self.setFixedSize(size, size)
         self.setWindowOpacity(opacity)
+        
+        self.move(center_x - size // 2, center_y - size // 2)
+        
         self.ball.set_size(size)
         self.ball.refresh_theme()
         self.updateGeometry()
