@@ -86,6 +86,9 @@ class Application:
     def _apply_settings(self, target):
         """应用设置变更"""
         self.float_widget.apply_settings()
+        self.drawer_panel._center_label.refresh_theme()
+        for btn in self.drawer_panel._buttons:
+            btn.refresh_theme()
         if target == 'float_ball':
             if self.drawer_panel._preview_mode:
                 self.drawer_panel.exit_preview_mode()

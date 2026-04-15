@@ -254,6 +254,9 @@ class PiePanel(QWidget):
         self._animation_group = []
         self._is_expanded = False
         self._is_collapsing = False
+        self._shadow_timer = QTimer(self)
+        self._shadow_timer.setInterval(16)
+        self._shadow_timer.timeout.connect(self.update)
     
     def _setup_window(self):
         """设置窗口属性"""
@@ -325,6 +328,7 @@ class PiePanel(QWidget):
         if not self._preview_mode:
             return
         self._preview_mode = False
+        self._shadow_timer.stop()
         self._stop_all_animations()
         self._is_expanded = False
         self._is_collapsing = False
@@ -424,6 +428,7 @@ class PiePanel(QWidget):
                 btn._hover_enabled = not self._preview_mode
             self.show()
             self._apply_mask()
+            self.update()
     
     def _calculate_button_targets(self, center_x: float, center_y: float):
         """计算按钮的目标位置（面板内相对坐标）"""
@@ -476,6 +481,8 @@ class PiePanel(QWidget):
         """展开动画：按钮从中心飞出到目标位置，同时从小变大"""
         self._is_expanded = True
         
+        self._shadow_timer.start()
+        
         # 动画期间禁用 hover，防止按钮飞出时误触发 hover
         for btn in self._buttons:
             btn._hover_enabled = False
@@ -525,6 +532,9 @@ class PiePanel(QWidget):
     
     def _on_expand_finished(self):
         """展开动画结束后恢复 hover 并检测鼠标位置"""
+        self._shadow_timer.stop()
+        self.update()
+        
         for btn in self._buttons:
             btn._hover_enabled = not self._preview_mode
         self._center_label._hover_enabled = not self._preview_mode
@@ -542,10 +552,10 @@ class PiePanel(QWidget):
             widget._update_style(True)
     
     def _apply_mask(self):
-        """设置圆形 mask，将热区限制为可见内容区域"""
+        """设置圆形 mask，将热区限制为可见内容区域（含阴影空间）"""
         button_radius = get_config().get().get('pie_button_size', 56) // 2
-        # mask 半径 = 环形布局半径 + 按钮半径 + 少量 padding
-        mask_radius = int(self._pie_radius + button_radius + 8)
+        # mask 半径 = 环形布局半径 + 按钮半径 + 阴影模糊空间
+        mask_radius = int(self._pie_radius + button_radius + 22)
         cx = self._center_pos.x()
         cy = self._center_pos.y()
         region = QRegion(
@@ -558,6 +568,8 @@ class PiePanel(QWidget):
     def _collapse_animations(self, callback):
         """收起动画：按钮飞回中心，同时缩小"""
         self._is_expanded = False
+        
+        self._shadow_timer.start()
         
         # 清除现有动画
         for anim in self._animation_group:
@@ -613,6 +625,7 @@ class PiePanel(QWidget):
     
     def _hide_immediate(self):
         """立即隐藏"""
+        self._shadow_timer.stop()
         self._is_expanded = False
         self._is_collapsing = False
         self.clearMask()
@@ -636,5 +649,63 @@ class PiePanel(QWidget):
         super().hideEvent(event)
     
     def paintEvent(self, event):
-        """不绘制背景，保持完全透明"""
-        pass
+        """绘制阴影层 - macOS 风格柔和圆形阴影"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        shadow_color = QColor(0, 0, 0, 46)
+        shadow_y_offset = 2
+        shadow_spread = 10
+
+        cfg = get_config().get()
+        button_radius = cfg.get('pie_button_size', 56) // 2
+
+        # 为每个按钮绘制阴影
+        for btn in self._buttons:
+            if not btn.isVisible():
+                continue
+            scale = btn._scale if hasattr(btn, '_scale') else 1.0
+            if scale <= 0.01:
+                continue
+
+            r = button_radius * scale
+            cx = btn.pos().x() + button_radius
+            cy = btn.pos().y() + button_radius + shadow_y_offset
+
+            gradient = QRadialGradient(cx, cy, r + shadow_spread)
+            gradient.setColorAt(0, shadow_color)
+            gradient.setColorAt(0.7, QColor(0, 0, 0, 20))
+            gradient.setColorAt(1.0, QColor(0, 0, 0, 0))
+
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(gradient)
+            painter.drawEllipse(
+                int(cx - r - shadow_spread),
+                int(cy - r - shadow_spread),
+                int((r + shadow_spread) * 2),
+                int((r + shadow_spread) * 2)
+            )
+
+        # 为中心返回按钮绘制阴影
+        if self._center_label.isVisible():
+            center_r = self._center_label.width() // 2
+            if hasattr(self._center_label, '_scale'):
+                pass  # center button doesn't scale
+            cx = self._center_label.pos().x() + center_r
+            cy = self._center_label.pos().y() + center_r + shadow_y_offset
+
+            gradient = QRadialGradient(cx, cy, center_r + shadow_spread)
+            gradient.setColorAt(0, shadow_color)
+            gradient.setColorAt(0.7, QColor(0, 0, 0, 20))
+            gradient.setColorAt(1.0, QColor(0, 0, 0, 0))
+
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(gradient)
+            painter.drawEllipse(
+                int(cx - center_r - shadow_spread),
+                int(cy - center_r - shadow_spread),
+                int((center_r + shadow_spread) * 2),
+                int((center_r + shadow_spread) * 2)
+            )
+
+        painter.end()
