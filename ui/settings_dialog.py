@@ -194,7 +194,7 @@ class PersonalizePage(QWidget):
 
         # 扩展面板组
         group3 = _GroupWidget("扩展面板")
-        self.pie_btn_slider = _LabeledSlider("图标大小", 32, 128, cfg.get('pie_button_size', 56), suffix=" px")
+        self.pie_btn_slider = _LabeledSlider("图标大小", 32, 100, cfg.get('pie_button_size', 56), suffix=" px")
         self.pie_btn_slider.value_changed.connect(self._on_pie_btn_size_changed)
         group3.add_row(_SettingRow("扩展图标大小", self.pie_btn_slider))
 

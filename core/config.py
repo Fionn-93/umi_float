@@ -59,7 +59,7 @@ class ConfigManager:
                 pass
         
         if 'pie_button_size' in data and isinstance(data['pie_button_size'], int):
-            config['pie_button_size'] = max(32, min(128, data['pie_button_size']))
+            config['pie_button_size'] = max(32, min(100, data['pie_button_size']))
         
         if 'pie_spacing' in data and isinstance(data['pie_spacing'], int):
             config['pie_spacing'] = max(0, min(30, data['pie_spacing']))
