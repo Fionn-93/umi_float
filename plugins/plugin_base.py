@@ -30,6 +30,10 @@ class PluginConfig:
     @property
     def enabled(self) -> bool:
         return self.data.get('enabled', True)
+    
+    @property
+    def description(self) -> str:
+        return self.data.get('description', '')
 
 
 class Plugin(ABC):

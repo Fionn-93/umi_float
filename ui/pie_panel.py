@@ -18,7 +18,7 @@ class PieButton(QLabel):
     
     clicked = pyqtSignal()
     
-    def __init__(self, icon_name: str, name: str, size: int = 64, parent=None):
+    def __init__(self, icon_name: str, name: str, description: str = "", size: int = 64, parent=None):
         super().__init__(parent)
         self.name = name
         self.icon_name = icon_name
@@ -27,6 +27,11 @@ class PieButton(QLabel):
         self.setAlignment(Qt.AlignCenter)
         self._scale = 0.0
         self._hover_enabled = True
+        
+        tooltip = name
+        if description:
+            tooltip += f"\n{description}"
+        self.setToolTip(tooltip)
         
         from PyQt5.QtGui import QIcon
         from PyQt5.QtWidgets import QApplication, QStyle
@@ -291,8 +296,9 @@ class PiePanel(QWidget):
         for plugin_id, plugin_config in self._plugins.items():
             icon_name = plugin_config.icon
             name = plugin_config.name
+            description = plugin_config.description
             
-            btn = PieButton(icon_name, name, size=button_size, parent=self)
+            btn = PieButton(icon_name, name, description=description, size=button_size, parent=self)
             btn.clicked.connect(partial(self._on_plugin_clicked, plugin_id))
             btn.hide()
             self._buttons.append(btn)
