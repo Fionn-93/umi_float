@@ -453,14 +453,25 @@ class PiePanel(QWidget):
         # 计算外圆半径
         if num_buttons == 1:
             pie_radius = center_label_radius + button_radius + spacing
+        elif num_buttons == 2:
+            # 特殊处理：两个按钮时直接计算，避免 cos(90°) = 0 的问题
+            pie_radius = center_label_radius + button_radius + spacing
         elif num_buttons <= 6:
             angle_step = 360 / num_buttons
             angle_rad = math.radians(angle_step / 2)
-            pie_radius = (center_label_radius + button_radius + spacing) / math.cos(angle_rad)
+            cos_val = math.cos(angle_rad)
+            if cos_val > 0.1:
+                pie_radius = (center_label_radius + button_radius + spacing) / cos_val
+            else:
+                pie_radius = center_label_radius + button_radius + spacing
         else:
             circumference = (button_radius * 2 + spacing) * num_buttons
             pie_radius = circumference / (2 * math.pi)
             pie_radius = max(pie_radius, center_label_radius + button_radius + spacing)
+        
+        # 安全检查：确保 pie_radius 是有限值
+        if not math.isfinite(pie_radius) or pie_radius > 10000:
+            pie_radius = center_label_radius + button_radius + spacing
         
         self._pie_radius = pie_radius
         

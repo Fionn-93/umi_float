@@ -51,8 +51,9 @@ class Application:
         
         # 加载插件到面板
         self.plugin_manager.initialize()
-        plugins = self.plugin_manager.get_plugins()
-        self.drawer_panel.set_plugins(plugins)
+        enabled_plugins, _ = self.plugin_manager.get_ordered_plugins()
+        plugins_dict = {pid: config for pid, config in enabled_plugins}
+        self.drawer_panel.set_plugins(plugins_dict)
         
         self.float_widget.show()
         
@@ -74,8 +75,10 @@ class Application:
         if self.settings_dialog is None or not self.settings_dialog.isVisible():
             self.settings_dialog = SettingsDialog()
             self.settings_dialog.settings_changed.connect(self._apply_settings)
+            self.settings_dialog.page_changed.connect(self._on_page_changed)
             self.settings_dialog.finished.connect(self._on_settings_closed)
             self.settings_dialog.show()
+            self.drawer_panel.enter_preview_mode(self.float_widget)
         else:
             self.settings_dialog.raise_()
             self.settings_dialog.activateWindow()
@@ -83,6 +86,12 @@ class Application:
     def _on_settings_closed(self):
         """设置窗口关闭时退出预览模式"""
         self.drawer_panel.exit_preview_mode()
+    
+    def _on_page_changed(self, page_index):
+        """页面切换时处理预览模式"""
+        if page_index == 1:
+            if not self.drawer_panel._preview_mode:
+                self.drawer_panel.enter_preview_mode(self.float_widget)
     
     def _apply_settings(self, target):
         """应用设置变更"""
@@ -95,6 +104,10 @@ class Application:
                 self.drawer_panel.exit_preview_mode()
         elif target == 'pie_panel':
             if self.drawer_panel._preview_mode:
+                self.plugin_manager.reload_plugins()
+                enabled_plugins, _ = self.plugin_manager.get_ordered_plugins()
+                plugins_dict = {pid: config for pid, config in enabled_plugins}
+                self.drawer_panel.set_plugins(plugins_dict)
                 self.drawer_panel.refresh_preview_layout(self.float_widget)
             else:
                 self.drawer_panel.enter_preview_mode(self.float_widget)

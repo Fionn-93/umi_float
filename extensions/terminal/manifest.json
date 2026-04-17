@@ -1,8 +1,0 @@
-{
-  "name": "终端",
-  "description": "打开终端",
-  "icon": "terminal",
-  "exec": "deepin-terminal",
-  "type": "command",
-  "enabled": true
-}

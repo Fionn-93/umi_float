@@ -13,11 +13,13 @@ APP_ID = "com.umi.float"
 CONFIG_DIR = Path(os.path.expanduser("~/.config/umi-float"))
 DATA_DIR = Path(os.path.expanduser("~/.local/share/umi-float"))
 EXTENSIONS_DIR = DATA_DIR / "extensions"
+ICONS_DIR = DATA_DIR / "icons"
 
 # 确保目录存在
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 EXTENSIONS_DIR.mkdir(parents=True, exist_ok=True)
+ICONS_DIR.mkdir(parents=True, exist_ok=True)
 
 # 默认配置值
 DEFAULT_CONFIG = {
@@ -30,8 +32,9 @@ DEFAULT_CONFIG = {
     "auto_start": False,
     "show_on_fullscreen": False,
     "weather_api_key": "",
-    "weather_location": "101010100",  # 北京
+    "weather_location": "101010100",
     "position": {"x": 100, "y": 100},
+    "plugin_overrides": {},
 }
 
 # 插件配置文件名

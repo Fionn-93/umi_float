@@ -85,6 +85,15 @@ class ConfigManager:
             if isinstance(pos.get('x'), int) and isinstance(pos.get('y'), int):
                 config['position'] = {'x': max(0, pos['x']), 'y': max(0, pos['y'])}
         
+        if 'enabled_plugins' in data and isinstance(data['enabled_plugins'], list):
+            config['enabled_plugins'] = [str(p) for p in data['enabled_plugins'] if isinstance(p, str)]
+        
+        if 'disabled_plugins' in data and isinstance(data['disabled_plugins'], list):
+            config['disabled_plugins'] = [str(p) for p in data['disabled_plugins'] if isinstance(p, str)]
+        
+        if 'plugin_overrides' in data and isinstance(data['plugin_overrides'], dict):
+            config['plugin_overrides'] = data['plugin_overrides']
+        
         return config
     
     def save(self) -> None:
@@ -104,8 +113,9 @@ class ConfigManager:
     def update(self, **kwargs) -> None:
         """更新配置"""
         config = self.get()
+        allowed_new_keys = ('enabled_plugins', 'disabled_plugins', 'plugin_overrides')
         for key, value in kwargs.items():
-            if key in config:
+            if key in config or key in allowed_new_keys:
                 config[key] = value
         self._config = self._validate_config(config)
         self.save()

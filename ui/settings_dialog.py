@@ -4,17 +4,21 @@
 from PyQt5.QtWidgets import (
     QDialog, QHBoxLayout, QVBoxLayout, QListWidget, QListWidgetItem,
     QStackedWidget, QLabel, QSlider, QPushButton, QWidget, QColorDialog,
-    QFrame, QScrollArea, QSizePolicy, QComboBox,
+    QFrame, QScrollArea, QSizePolicy, QComboBox, QMessageBox,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QColor, QFont
 
 from core.config import get_config
 from utils.theme_colors import theme_from_hex
+from plugins.plugin_manager import PluginManager
+from widgets.plugin_list_widget import PluginListWidget, DropForwardScrollArea
+from ui.plugin_edit_dialog import PluginEditDialog
 
 
 class SettingsDialog(QDialog):
     settings_changed = pyqtSignal(str)
+    page_changed = pyqtSignal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -94,6 +98,7 @@ class SettingsDialog(QDialog):
 
     def _switch_page(self, row):
         self.stack.setCurrentIndex(row)
+        self.page_changed.emit(row)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -262,23 +267,145 @@ class PersonalizePage(QWidget):
 class ExtensionsPage(QWidget):
     def __init__(self, parent):
         super().__init__()
+        self.dialog = parent
+        self._init_ui()
+    
+    def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        header = QWidget()
+        header.setStyleSheet("background-color: #f6f6f6;")
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(20, 20, 20, 12)
+        header_layout.setSpacing(12)
+        
         title = QLabel("扩展管理")
         title.setFont(QFont("", 16, QFont.Bold))
         title.setStyleSheet("color: #1d1d1f; background: transparent;")
-        layout.addWidget(title)
-
-        group = _GroupWidget()
-        placeholder = QLabel("扩展管理功能待实现")
-        placeholder.setAlignment(Qt.AlignCenter)
-        placeholder.setStyleSheet("color: #999; font-size: 13px; padding: 40px 16px; background: transparent;")
-        group._row_container.addWidget(placeholder)
-        layout.addWidget(group)
-        layout.addStretch()
-
+        header_layout.addWidget(title)
+        
+        header_layout.addStretch()
+        
+        new_btn = QPushButton("+ 新建")
+        new_btn.setFixedSize(80, 32)
+        new_btn.setCursor(Qt.PointingHandCursor)
+        new_btn.clicked.connect(self._on_new_plugin)
+        new_btn.setStyleSheet("""
+            QPushButton {
+                background: #1976D2;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background: #1565C0;
+            }
+        """)
+        header_layout.addWidget(new_btn)
+        
+        layout.addWidget(header)
+        
+        scroll = DropForwardScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet("QScrollArea { background-color: #f6f6f6; border: none; }")
+        
+        self.plugin_list = PluginListWidget()
+        self.plugin_list.order_changed.connect(self._on_order_changed)
+        self.plugin_list.edit_requested.connect(self._on_edit_plugin)
+        self.plugin_list.delete_requested.connect(self._on_delete_plugin)
+        
+        scroll.setWidget(self.plugin_list)
+        layout.addWidget(scroll)
+        
         self.setStyleSheet("background-color: #f6f6f6;")
+        
+        self._refresh_list()
+    
+    def _refresh_list(self):
+        pm = PluginManager.get()
+        enabled, disabled = pm.get_ordered_plugins()
+        self.plugin_list.set_plugins(enabled, disabled)
+    
+    def _on_order_changed(self):
+        self._refresh_list()
+        self.dialog.settings_changed.emit('pie_panel')
+    
+    def _on_new_plugin(self):
+        dialog = PluginEditDialog(parent=self)
+        if dialog.exec_() == QDialog.Accepted:
+            data = dialog.get_data()
+            pm = PluginManager.get()
+            pm.create_plugin(
+                name=data['name'],
+                description=data['description'],
+                icon=data['icon'],
+                exec_cmd=data['exec']
+            )
+            self._refresh_list()
+            self.dialog.settings_changed.emit('pie_panel')
+    
+    def _on_edit_plugin(self, plugin_id: str):
+        pm = PluginManager.get()
+        enabled, disabled = pm.get_ordered_plugins()
+        
+        plugin_config = None
+        for pid, config in enabled + disabled:
+            if pid == plugin_id:
+                plugin_config = config
+                break
+        
+        if plugin_config is None:
+            return
+        
+        dialog = PluginEditDialog(
+            plugin_id=plugin_id,
+            name=plugin_config.name,
+            description=plugin_config.description,
+            icon=plugin_config.icon,
+            exec_cmd=plugin_config.exec,
+            parent=self
+        )
+        
+        if dialog.exec_() == QDialog.Accepted:
+            data = dialog.get_data()
+            pm.update_plugin_override(plugin_id, {
+                'name': data['name'],
+                'description': data['description'],
+                'icon': data['icon'],
+                'exec': data['exec'],
+            })
+            self._refresh_list()
+            self.dialog.settings_changed.emit('pie_panel')
+    
+    def _on_delete_plugin(self, plugin_id: str):
+        pm = PluginManager.get()
+        
+        plugin_config = None
+        enabled, disabled = pm.get_ordered_plugins()
+        for pid, config in enabled + disabled:
+            if pid == plugin_id:
+                plugin_config = config
+                break
+        
+        if plugin_config is None:
+            return
+        
+        reply = QMessageBox.question(
+            self,
+            "确认删除",
+            f"确定要删除扩展 \"{plugin_config.name}\" 吗？\n此操作不可撤销。",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            pm.delete_plugin(plugin_id)
+            self._refresh_list()
+            self.dialog.settings_changed.emit('pie_panel')
 
 
 class _ColorButton(QWidget):
