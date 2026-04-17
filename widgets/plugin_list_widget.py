@@ -81,7 +81,7 @@ class PluginListWidget(QWidget):
         self.setStyleSheet("background-color: #f6f6f6;")
         
         self._main_layout = QVBoxLayout(self)
-        self._main_layout.setContentsMargins(0, 0, 0, 0)
+        self._main_layout.setContentsMargins(0, 0, 0, 16)
         self._main_layout.setSpacing(16)
         
         self._enabled_section = self._create_section("已启用")
@@ -90,8 +90,7 @@ class PluginListWidget(QWidget):
         self._disabled_section = self._create_section("已禁用")
         self._main_layout.addWidget(self._disabled_section)
         
-        self._main_layout.addStretch()
-        
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
         self.setAcceptDrops(True)
     
     def _create_section(self, title: str) -> QFrame:

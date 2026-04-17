@@ -312,6 +312,8 @@ class ExtensionsPage(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
         scroll.setStyleSheet("QScrollArea { background-color: #f6f6f6; border: none; }")
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         
         self.plugin_list = PluginListWidget()
         self.plugin_list.order_changed.connect(self._on_order_changed)
