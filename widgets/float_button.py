@@ -3,6 +3,7 @@
 支持三种显示模式：时钟、内存水位、天气
 """
 import math
+from pathlib import Path
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import Qt, QTimer, QTime, QRect
 from PyQt5.QtGui import (
@@ -13,6 +14,9 @@ from core.config import get_config
 from utils.theme_colors import theme_from_hex
 from utils.memory_info import get_memory_usage
 from utils.weather_info import fetch_weather, get_cached_weather
+
+
+GLASS_PATH = Path(__file__).parent.parent / "assets" / "glass.png"
 
 
 class FloatButton(QLabel):
@@ -29,6 +33,7 @@ class FloatButton(QLabel):
         self._wave_offset = 0.0
         self._weather_data = None
         self._wave_timer = None
+        self._glass_pixmap = QPixmap(str(GLASS_PATH))
 
         self._apply_theme()
 
@@ -139,6 +144,7 @@ class FloatButton(QLabel):
             painter.setFont(font)
             painter.setPen(QPen(self.THEME_TEXT))
             painter.drawText(self.rect(), Qt.AlignCenter, current_time)
+            self._paint_glass_overlay(painter)
             painter.end()
         elif self._mode == 'memory':
             self._paint_memory_mode()
@@ -214,6 +220,7 @@ class FloatButton(QLabel):
         clip2.addEllipse(1, 1, radius * 2, radius * 2)
         painter.drawEllipse(1, 1, radius * 2, radius * 2)
 
+        self._paint_glass_overlay(painter)
         painter.end()
 
     def _paint_weather_mode(self):
@@ -278,8 +285,15 @@ class FloatButton(QLabel):
         painter.setBrush(Qt.NoBrush)
         painter.drawEllipse(1, 1, radius * 2, radius * 2)
 
+        self._paint_glass_overlay(painter)
         painter.end()
 
     def update_time(self):
         current_time = QTime.currentTime().toString("HH:mm")
         self.setText(current_time)
+
+    def _paint_glass_overlay(self, painter):
+        """叠加玻璃球效果"""
+        if self._glass_pixmap and not self._glass_pixmap.isNull():
+            painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+            painter.drawPixmap(0, 0, self.size, self.size, self._glass_pixmap)
