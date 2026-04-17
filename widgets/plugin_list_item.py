@@ -40,7 +40,12 @@ class PluginListItem(QFrame):
         
         icon_label = QLabel()
         icon = self._load_icon()
-        icon_label.setPixmap(icon.pixmap(28, 28))
+        from PyQt5.QtWidgets import QApplication
+        app = QApplication.instance()
+        dpr = app.devicePixelRatio() if app else 1.0
+        pixmap = icon.pixmap(int(28 * dpr), int(28 * dpr))
+        pixmap.setDevicePixelRatio(dpr)
+        icon_label.setPixmap(pixmap)
         icon_label.setFixedSize(28, 28)
         layout.addWidget(icon_label)
         
@@ -128,7 +133,14 @@ class PluginListItem(QFrame):
         drag.setMimeData(mime)
         
         pixmap = self.grab()
-        drag.setPixmap(pixmap)
+        transparent_pixmap = QPixmap(pixmap.size())
+        transparent_pixmap.fill(Qt.transparent)
+        from PyQt5.QtGui import QPainter
+        painter = QPainter(transparent_pixmap)
+        painter.setOpacity(0.4)
+        painter.drawPixmap(0, 0, pixmap)
+        painter.end()
+        drag.setPixmap(transparent_pixmap)
         drag.setHotSpot(self._drag_start_pos)
         
         self.drag_started.emit()

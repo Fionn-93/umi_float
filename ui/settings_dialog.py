@@ -196,6 +196,12 @@ class PersonalizePage(QWidget):
                 font-size: 13px;
                 min-width: 100px;
             }
+            #displayModeCombo QAbstractItemView {
+                background: #ffffff;
+                color: #1d1d1f;
+                selection-background-color: #e3f2fd;
+                selection-color: #1d1d1f;
+            }
             #displayModeComboBox::drop-down {
                 border: none;
                 width: 20px;

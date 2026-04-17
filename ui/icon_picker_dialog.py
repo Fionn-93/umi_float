@@ -131,6 +131,16 @@ class IconPickerDialog(QDialog):
         
         self._search_input = QLineEdit()
         self._search_input.setPlaceholderText("输入图标名称...")
+        self._search_input.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #d0d0d0;
+                border-radius: 4px;
+                padding: 6px;
+                font-size: 13px;
+                color: #1d1d1f;
+                background: #ffffff;
+            }
+        """)
         self._search_input.textChanged.connect(self._filter_icons)
         search_layout.addWidget(self._search_input)
         layout.addLayout(search_layout)

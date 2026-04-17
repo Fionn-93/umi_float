@@ -47,6 +47,8 @@ class PluginEditDialog(QDialog):
                 border-radius: 4px;
                 padding: 6px;
                 font-size: 13px;
+                color: #1d1d1f;
+                background: #ffffff;
             }
             QTextEdit:focus {
                 border-color: #1976D2;
@@ -74,6 +76,8 @@ class PluginEditDialog(QDialog):
                 border-radius: 4px;
                 padding: 6px;
                 font-size: 13px;
+                color: #1d1d1f;
+                background: #ffffff;
             }
             QLineEdit:focus {
                 border-color: #1976D2;
@@ -151,6 +155,8 @@ class PluginEditDialog(QDialog):
                 border-radius: 4px;
                 padding: 6px;
                 font-size: 13px;
+                color: #1d1d1f;
+                background: #ffffff;
             }
             QLineEdit:focus {
                 border-color: #1976D2;
