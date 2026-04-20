@@ -1,22 +1,18 @@
 """
 悬浮球按钮组件
-支持三种显示模式：时钟、内存水位、天气
+支持三种显示模式：时钟、性能、天气
 """
-import math
-from pathlib import Path
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import Qt, QTimer, QTime, QRect
 from PyQt5.QtGui import (
-    QColor, QFont, QPainter, QPainterPath, QPen, QIcon, QPixmap
+    QColor, QFont, QPainter, QPen, QIcon, QPixmap
 )
 
 from core.config import get_config
 from utils.theme_colors import theme_from_hex
 from utils.memory_info import get_memory_usage
+from utils.network_info import NetworkMonitor
 from utils.weather_info import fetch_weather, get_cached_weather
-
-
-GLASS_PATH = Path(__file__).parent.parent / "assets" / "glass.png"
 
 
 class FloatButton(QLabel):
@@ -30,10 +26,9 @@ class FloatButton(QLabel):
 
         self._mode = "clock"
         self._mem_percent = 0.0
-        self._wave_offset = 0.0
+        self._net_up_text = "0B"
+        self._net_down_text = "0B"
         self._weather_data = None
-        self._wave_timer = None
-        self._glass_pixmap = QPixmap(str(GLASS_PATH))
 
         self._apply_theme()
 
@@ -74,41 +69,20 @@ class FloatButton(QLabel):
         self.update()
 
     def set_mode(self, mode: str):
-        if mode not in ('clock', 'memory', 'weather'):
+        if mode not in ('clock', 'performance', 'weather'):
             return
         self._mode = mode
         if mode == 'clock':
             self.timer.setInterval(1000)
-            self._stop_wave_timer()
             self._update_style()
-        elif mode == 'memory':
-            self.timer.setInterval(2000)
-            self._start_wave_timer()
+        elif mode == 'performance':
+            self.timer.setInterval(1000)
             self.setStyleSheet("background-color: transparent; border: none;")
         elif mode == 'weather':
             self.timer.setInterval(30 * 60 * 1000)
-            self._stop_wave_timer()
             self.setStyleSheet("background-color: transparent; border: none;")
             self._fetch_weather()
         self._refresh_content()
-
-    def _start_wave_timer(self):
-        if self._wave_timer is None:
-            self._wave_timer = QTimer(self)
-            self._wave_timer.timeout.connect(self._animate_wave)
-            self._wave_timer.start(50)
-
-    def _stop_wave_timer(self):
-        if self._wave_timer is not None:
-            self._wave_timer.stop()
-            self._wave_timer.deleteLater()
-            self._wave_timer = None
-
-    def _animate_wave(self):
-        self._wave_offset += 3.0
-        if self._wave_offset > 360:
-            self._wave_offset -= 360
-        self.update()
 
     def _fetch_weather(self):
         config = get_config()
@@ -118,10 +92,14 @@ class FloatButton(QLabel):
         self._weather_data = fetch_weather(api_key, location)
 
     def _refresh_content(self):
-        if self._mode == 'memory':
+        if self._mode == 'performance':
             mem = get_memory_usage()
             if mem:
                 self._mem_percent = mem['percent']
+            net = NetworkMonitor.get().get_speed()
+            if net:
+                self._net_up_text = net['up_text']
+                self._net_down_text = net['down_text']
         elif self._mode == 'weather':
             cached = get_cached_weather()
             if cached:
@@ -129,8 +107,6 @@ class FloatButton(QLabel):
             else:
                 self._fetch_weather()
         self.update()
-
-    # ── 绘制 ──
 
     def paintEvent(self, event):
         if self._mode == 'clock':
@@ -144,10 +120,9 @@ class FloatButton(QLabel):
             painter.setFont(font)
             painter.setPen(QPen(self.THEME_TEXT))
             painter.drawText(self.rect(), Qt.AlignCenter, current_time)
-            self._paint_glass_overlay(painter)
             painter.end()
-        elif self._mode == 'memory':
-            self._paint_memory_mode()
+        elif self._mode == 'performance':
+            self._paint_performance_mode()
         elif self._mode == 'weather':
             self._paint_weather_mode()
 
@@ -164,63 +139,66 @@ class FloatButton(QLabel):
             font-weight: bold;
         """)
 
-    def _paint_memory_mode(self):
-        radius = self.size // 2 - 1
+    def _paint_performance_mode(self):
+        size = self.size
+        radius = size // 2 - 1
+        ring_width = max(3, int(size * 0.08))
+        drawing_radius = radius - ring_width // 2
+        ring_rect = QRect(
+            1 + ring_width // 2,
+            1 + ring_width // 2,
+            drawing_radius * 2,
+            drawing_radius * 2
+        )
+
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        base = QColor(self.THEME_BG)
-        base.setAlpha(255)
+        bg = QColor(self.THEME_BG)
+        bg.setAlpha(255)
         painter.setPen(Qt.NoPen)
-        painter.setBrush(base)
+        painter.setBrush(bg)
         painter.drawEllipse(1, 1, radius * 2, radius * 2)
 
-        clip = QPainterPath()
-        clip.addEllipse(1, 1, radius * 2, radius * 2)
-        painter.setClipPath(clip)
-
-        fill_ratio = min(max(self._mem_percent / 100.0, 0.0), 1.0)
-        fill_y = self.size - int(self.size * fill_ratio)
-
-        wave_color = QColor(self.THEME_TEXT)
-        wave_color.setAlpha(180)
-
-        fill_path = QPainterPath()
-        fill_path.moveTo(0, self.size)
-        fill_path.lineTo(0, fill_y)
-
-        wave_amp = 3.0
-        wave_freq = 0.08
-        for x in range(self.size + 1):
-            y = fill_y + wave_amp * math.sin(
-                wave_freq * x * 2 * math.pi / self.size
-                + math.radians(self._wave_offset)
-            )
-            fill_path.lineTo(x, y)
-
-        fill_path.lineTo(self.size, self.size)
-        fill_path.closeSubpath()
-
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(wave_color)
-        painter.drawPath(fill_path)
-
-        font_size = max(8, int(self.size * 0.27))
-        font = QFont("", font_size, QFont.Bold)
-        painter.setFont(font)
-        painter.setPen(QPen(self.THEME_TEXT))
-        painter.setClipRect(self.rect())
-        painter.drawText(self.rect(), Qt.AlignCenter, f"{int(self._mem_percent)}%")
-
-        pen = QPen(self.THEME_BORDER, 2)
-        painter.setPen(pen)
+        track_color = QColor(self.THEME_TEXT)
+        track_color.setAlpha(40)
+        track_pen = QPen(track_color, ring_width, Qt.SolidLine, Qt.RoundCap)
+        painter.setPen(track_pen)
         painter.setBrush(Qt.NoBrush)
-        painter.setClipPath(QPainterPath())
-        clip2 = QPainterPath()
-        clip2.addEllipse(1, 1, radius * 2, radius * 2)
+        painter.drawArc(ring_rect, 0, 360 * 16)
+
+        progress_color = QColor(self.THEME_TEXT)
+        progress_color.setAlpha(220)
+        progress_pen = QPen(progress_color, ring_width, Qt.SolidLine, Qt.RoundCap)
+        painter.setPen(progress_pen)
+        span_angle = int(self._mem_percent / 100.0 * 360 * 16)
+        painter.drawArc(ring_rect, 90 * 16, -span_angle)
+
+        percent_font_size = max(8, int(size * 0.24))
+        percent_font = QFont("", percent_font_size, QFont.Bold)
+        painter.setFont(percent_font)
+        painter.setPen(QPen(self.THEME_TEXT))
+        percent_text = f"{int(self._mem_percent)}%"
+        fm = painter.fontMetrics()
+        ph = fm.height()
+        py = size // 2 - ph // 2 + fm.ascent()
+        px = (size - fm.horizontalAdvance(percent_text)) // 2
+        painter.drawText(px, py, percent_text)
+
+        net_font_size = max(5, int(size * 0.11))
+        net_font = QFont("", net_font_size)
+        painter.setFont(net_font)
+        net_text = f"↓{self._net_down_text}"
+        fm2 = painter.fontMetrics()
+        nx = (size - fm2.horizontalAdvance(net_text)) // 2
+        ny = py + fm2.ascent() + 6
+        painter.drawText(nx, ny, net_text)
+
+        border_pen = QPen(self.THEME_BORDER, 2)
+        painter.setPen(border_pen)
+        painter.setBrush(Qt.NoBrush)
         painter.drawEllipse(1, 1, radius * 2, radius * 2)
 
-        self._paint_glass_overlay(painter)
         painter.end()
 
     def _paint_weather_mode(self):
@@ -275,7 +253,6 @@ class FloatButton(QLabel):
             temp_text = f"{temp}°"
             fm = painter.fontMetrics()
             tw = fm.horizontalAdvance(temp_text)
-            th = fm.height()
             tx = (self.size - tw) // 2
             ty = self.size - max(4, self.size // 8)
             painter.drawText(tx, ty, temp_text)
@@ -285,15 +262,8 @@ class FloatButton(QLabel):
         painter.setBrush(Qt.NoBrush)
         painter.drawEllipse(1, 1, radius * 2, radius * 2)
 
-        self._paint_glass_overlay(painter)
         painter.end()
 
     def update_time(self):
         current_time = QTime.currentTime().toString("HH:mm")
         self.setText(current_time)
-
-    def _paint_glass_overlay(self, painter):
-        """叠加玻璃球效果"""
-        if self._glass_pixmap and not self._glass_pixmap.isNull():
-            painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
-            painter.drawPixmap(0, 0, self.size, self.size, self._glass_pixmap)

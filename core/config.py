@@ -59,7 +59,9 @@ class ConfigManager:
                 pass
         
         if 'display_mode' in data and isinstance(data['display_mode'], str):
-            if data['display_mode'] in ('clock', 'memory', 'weather'):
+            if data['display_mode'] == 'memory':
+                config['display_mode'] = 'performance'
+            elif data['display_mode'] in ('clock', 'performance', 'weather'):
                 config['display_mode'] = data['display_mode']
         
         if 'pie_button_size' in data and isinstance(data['pie_button_size'], int):

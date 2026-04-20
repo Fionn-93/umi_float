@@ -182,8 +182,8 @@ class PersonalizePage(QWidget):
         # 外观组
         group1 = _GroupWidget("外观")
         self.display_mode_combo = QComboBox()
-        self.display_mode_combo.addItems(["时钟", "内存", "天气"])
-        self.display_mode_combo.setCurrentText({"clock": "时钟", "memory": "内存", "weather": "天气"}.get(cfg.get('display_mode', 'clock'), "时钟"))
+        self.display_mode_combo.addItems(["时钟", "性能", "天气"])
+        self.display_mode_combo.setCurrentText({"clock": "时钟", "performance": "性能", "weather": "天气"}.get(cfg.get('display_mode', 'clock'), "时钟"))
         self.display_mode_combo.currentIndexChanged.connect(self._on_display_mode_changed)
         self.display_mode_combo.setObjectName("displayModeCombo")
         self.display_mode_combo.setStyleSheet("""
@@ -248,7 +248,7 @@ class PersonalizePage(QWidget):
         self.dialog.settings_changed.emit('float_ball')
 
     def _on_display_mode_changed(self, index):
-        mode_map = {0: 'clock', 1: 'memory', 2: 'weather'}
+        mode_map = {0: 'clock', 1: 'performance', 2: 'weather'}
         mode = mode_map.get(index, 'clock')
         self.config.update(display_mode=mode)
         self.dialog.settings_changed.emit('float_ball')

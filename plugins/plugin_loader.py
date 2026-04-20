@@ -295,16 +295,21 @@ class PluginLoader(QObject):
         return True
     
     def execute_plugin(self, plugin_id: str):
-        """执行插件"""
+        """执行插件（非阻塞）"""
         if plugin_id not in self._plugins:
             print(f"插件不存在: {plugin_id}")
             return
         
         config = self._get_effective_config(plugin_id)
         try:
-            subprocess.run(config.exec, shell=True, check=True)
+            subprocess.Popen(
+                config.exec,
+                shell=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
             print(f"执行插件: {config.name}")
-        except subprocess.CalledProcessError as e:
+        except Exception as e:
             print(f"执行插件失败: {e}")
     
     def save_custom_icon(self, source_path: str) -> str:
