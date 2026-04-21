@@ -42,7 +42,9 @@ class LocationSelector(QWidget):
             view.setStyleSheet("color: #333333; background-color: #ffffff;")
             combo.setView(view)
             combo.setMinimumWidth(80)
-            layout.addWidget(combo, 1)
+            layout.addWidget(combo, 4)
+
+        layout.addStretch(3)
 
         self.province_combo.currentIndexChanged.connect(self._on_province_changed)
         self.city_combo.currentIndexChanged.connect(self._on_city_changed)
@@ -107,13 +109,24 @@ class LocationSelector(QWidget):
             for ci, city in enumerate(prov["cities"]):
                 for di, dist in enumerate(city["districts"]):
                     if dist["id"] == target:
+                        self.province_combo.blockSignals(True)
                         self.province_combo.setCurrentIndex(pi)
+                        self.province_combo.blockSignals(False)
+
                         self.city_combo.blockSignals(True)
+                        self.city_combo.clear()
+                        for c in prov["cities"]:
+                            self.city_combo.addItem(c["name"])
                         self.city_combo.setCurrentIndex(ci)
                         self.city_combo.blockSignals(False)
+
                         self.district_combo.blockSignals(True)
+                        self.district_combo.clear()
+                        for d in city["districts"]:
+                            self.district_combo.addItem(d["name"], d["id"])
                         self.district_combo.setCurrentIndex(di)
                         self.district_combo.blockSignals(False)
+
                         self._updating = False
                         return
         self._updating = False

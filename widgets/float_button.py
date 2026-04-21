@@ -5,7 +5,7 @@
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import Qt, QTimer, QTime, QRect
 from PyQt5.QtGui import (
-    QColor, QFont, QPainter, QPen, QIcon, QPixmap
+    QColor, QFont, QPainter, QPen, QIcon, QPixmap, QConicalGradient, QBrush
 )
 
 from core.config import get_config
@@ -46,18 +46,6 @@ class FloatButton(QLabel):
         self.THEME_TEXT = colors['float_text']
         self.THEME_BORDER = colors['float_border']
 
-    def _update_style(self):
-        radius = self.size // 2
-        font_size = max(8, int(self.size * 0.27))
-        self.setStyleSheet(f"""
-            background-color: rgba({self.THEME_BG.red()}, {self.THEME_BG.green()}, {self.THEME_BG.blue()}, {self.THEME_BG.alpha()});
-            color: rgb({self.THEME_TEXT.red()}, {self.THEME_TEXT.green()}, {self.THEME_TEXT.blue()});
-            border: 2px solid rgb({self.THEME_BORDER.red()}, {self.THEME_BORDER.green()}, {self.THEME_BORDER.blue()});
-            border-radius: {radius}px;
-            font-size: {font_size}px;
-            font-weight: bold;
-        """)
-
     def refresh_theme(self):
         self._apply_theme()
         self.update()
@@ -65,7 +53,7 @@ class FloatButton(QLabel):
     def set_size(self, size: int):
         self.size = size
         self.setFixedSize(size, size)
-        self._update_style()
+        self.setStyleSheet("background-color: transparent; border: none;")
         self.update()
 
     def set_mode(self, mode: str):
@@ -73,8 +61,8 @@ class FloatButton(QLabel):
             return
         self._mode = mode
         if mode == 'clock':
-            self.timer.setInterval(1000)
-            self._update_style()
+            self.timer.setInterval(100)
+            self.setStyleSheet("background-color: transparent; border: none;")
         elif mode == 'performance':
             self.timer.setInterval(1000)
             self.setStyleSheet("background-color: transparent; border: none;")
@@ -111,34 +99,70 @@ class FloatButton(QLabel):
 
     def paintEvent(self, event):
         if self._mode == 'clock':
-            self._paint_via_stylesheet()
-            super().paintEvent(event)
-            current_time = QTime.currentTime().toString("HH:mm")
-            font_size = max(8, int(self.size * 0.27))
-            font = QFont("", font_size, QFont.Bold)
-            painter = QPainter(self)
-            painter.setRenderHint(QPainter.Antialiasing)
-            painter.setFont(font)
-            painter.setPen(QPen(self.THEME_TEXT))
-            painter.drawText(self.rect(), Qt.AlignCenter, current_time)
-            painter.end()
+            self._paint_clock_mode()
         elif self._mode == 'performance':
             self._paint_performance_mode()
         elif self._mode == 'weather':
             self._paint_weather_mode()
 
-    def _paint_via_stylesheet(self):
+    def _paint_clock_mode(self):
+        size = self.size
+        radius = size // 2 - 1
+        ring_width = max(2, int(size * 0.05))
+        ring_radius = radius - ring_width // 2
+        ring_rect = QRect(
+            1 + ring_width // 2,
+            1 + ring_width // 2,
+            ring_radius * 2,
+            ring_radius * 2,
+        )
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
         opacity = int(get_config().get().get('opacity', 0.9) * 255)
-        radius = self.size // 2
-        font_size = max(8, int(self.size * 0.27))
-        self.setStyleSheet(f"""
-            background-color: rgba({self.THEME_BG.red()}, {self.THEME_BG.green()}, {self.THEME_BG.blue()}, {opacity});
-            color: rgb({self.THEME_TEXT.red()}, {self.THEME_TEXT.green()}, {self.THEME_TEXT.blue()});
-            border: 2px solid rgb({self.THEME_BORDER.red()}, {self.THEME_BORDER.green()}, {self.THEME_BORDER.blue()});
-            border-radius: {radius}px;
-            font-size: {font_size}px;
-            font-weight: bold;
-        """)
+        bg = QColor(self.THEME_BG)
+        bg.setAlpha(opacity)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(bg)
+        painter.drawEllipse(1, 1, radius * 2, radius * 2)
+
+        track_color = QColor(self.THEME_TEXT)
+        track_color.setAlpha(30)
+        track_pen = QPen(track_color, ring_width, Qt.SolidLine, Qt.RoundCap)
+        painter.setPen(track_pen)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawArc(ring_rect, 0, 360 * 16)
+
+        now = QTime.currentTime()
+        seconds = now.second() + now.msec() / 1000.0
+        span_angle = int(seconds / 60.0 * 360 * 16)
+
+        gradient = QConicalGradient(ring_rect.center(), 270)
+        progress_color = QColor(self.THEME_TEXT)
+        gradient.setColorAt(0.0, QColor(progress_color.red(), progress_color.green(), progress_color.blue(), 200))
+        gradient.setColorAt(0.8, QColor(progress_color.red(), progress_color.green(), progress_color.blue(), 120))
+        gradient.setColorAt(1.0, QColor(progress_color.red(), progress_color.green(), progress_color.blue(), 0))
+
+        progress_pen = QPen(QBrush(gradient), ring_width, Qt.SolidLine, Qt.RoundCap)
+        painter.setPen(progress_pen)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawArc(ring_rect, 90 * 16, -span_angle)
+
+        current_time = now.toString("HH:mm")
+        font_size = max(8, int(size * 0.27))
+        font = QFont("", font_size, QFont.Bold)
+        font.setLetterSpacing(QFont.AbsoluteSpacing, 2)
+        painter.setFont(font)
+        painter.setPen(QPen(self.THEME_TEXT))
+        painter.drawText(self.rect(), Qt.AlignCenter, current_time)
+
+        border_pen = QPen(self.THEME_BORDER, 2)
+        painter.setPen(border_pen)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawEllipse(1, 1, radius * 2, radius * 2)
+
+        painter.end()
 
     def _paint_performance_mode(self):
         size = self.size
