@@ -391,6 +391,9 @@ class ExtensionsPage(QWidget):
         header_layout.addStretch()
 
         accent = self.dialog._accent_color
+        r = int(accent[1:3], 16)
+        g = int(accent[3:5], 16)
+        b = int(accent[5:7], 16)
         new_btn = QPushButton("+ 新建")
         new_btn.setFixedSize(80, 32)
         new_btn.setCursor(Qt.PointingHandCursor)
@@ -404,7 +407,7 @@ class ExtensionsPage(QWidget):
                 font-size: 13px;
             }}
             QPushButton:hover {{
-                background: {accent}dd;
+                background: rgba({r}, {g}, {b}, 0.8);
             }}
         """)
         header_layout.addWidget(new_btn)

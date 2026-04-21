@@ -242,16 +242,20 @@ class IconPickerDialog(QDialog):
         ok_btn.setFixedSize(80, 32)
         ok_btn.setCursor(Qt.PointingHandCursor)
         ok_btn.clicked.connect(self._on_ok)
+        accent = self._accent_color
+        r = int(accent[1:3], 16)
+        g = int(accent[3:5], 16)
+        b = int(accent[5:7], 16)
         ok_btn.setStyleSheet(f"""
             QPushButton {{
-                background: {self._accent_color};
+                background: {accent};
                 color: white;
                 border: none;
                 border-radius: 6px;
                 font-size: 13px;
             }}
             QPushButton:hover {{
-                background: {self._accent_color}dd;
+                background: rgba({r}, {g}, {b}, 0.8);
             }}
         """)
         btn_layout.addWidget(ok_btn)

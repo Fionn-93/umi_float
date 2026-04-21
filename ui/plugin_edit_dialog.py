@@ -10,6 +10,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon, QFont
 
 from ui.icon_picker_dialog import IconPickerDialog
+from utils.system_info import SystemInfo
 
 
 class PluginEditDialog(QDialog):
@@ -23,12 +24,13 @@ class PluginEditDialog(QDialog):
         self._description = description
         self._icon = icon
         self._exec = exec_cmd
-        
+        self._accent_color = SystemInfo.get_accent_color()
+
         self.setWindowTitle("编辑扩展" if plugin_id else "新建扩展")
         self.setWindowFlags(Qt.Dialog | Qt.WindowStaysOnTopHint)
         self.setMinimumSize(400, 320)
         self.resize(420, 340)
-        
+
         self._init_ui()
     
     def _init_ui(self):
@@ -41,23 +43,23 @@ class PluginEditDialog(QDialog):
         self._desc_input = QTextEdit()
         self._desc_input.setPlainText(self._description)
         self._desc_input.setFixedHeight(60)
-        self._desc_input.setStyleSheet("""
-            QTextEdit {
-                border: 1px solid #d0d0d0;
-                border-radius: 4px;
+        self._desc_input.setStyleSheet(f"""
+            QTextEdit {{
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
                 padding: 6px;
                 font-size: 13px;
-                color: #1d1d1f;
+                color: #333333;
                 background: #ffffff;
-            }
-            QTextEdit:focus {
-                border-color: #1976D2;
-            }
+            }}
+            QTextEdit:focus {{
+                border-color: {self._accent_color};
+            }}
         """)
         desc_layout = QHBoxLayout()
         desc_label = QLabel("描述")
         desc_label.setFixedWidth(60)
-        desc_label.setStyleSheet("color: #1d1d1f; font-size: 13px;")
+        desc_label.setStyleSheet("color: #333333; font-size: 13px; background: transparent;")
         desc_layout.addWidget(desc_label)
         desc_layout.addWidget(self._desc_input)
         layout.addLayout(desc_layout)
@@ -65,47 +67,49 @@ class PluginEditDialog(QDialog):
         icon_layout = QHBoxLayout()
         icon_label = QLabel("图标")
         icon_label.setFixedWidth(60)
-        icon_label.setStyleSheet("color: #1d1d1f; font-size: 13px;")
+        icon_label.setStyleSheet("color: #333333; font-size: 13px; background: transparent;")
         icon_layout.addWidget(icon_label)
         
         self._icon_input = QLineEdit(self._icon)
         self._icon_input.setPlaceholderText("图标名称或路径")
-        self._icon_input.setStyleSheet("""
-            QLineEdit {
-                border: 1px solid #d0d0d0;
-                border-radius: 4px;
+        self._icon_input.setStyleSheet(f"""
+            QLineEdit {{
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
                 padding: 6px;
                 font-size: 13px;
-                color: #1d1d1f;
+                color: #333333;
                 background: #ffffff;
-            }
-            QLineEdit:focus {
-                border-color: #1976D2;
-            }
+            }}
+            QLineEdit:focus {{
+                border-color: {self._accent_color};
+            }}
         """)
         icon_layout.addWidget(self._icon_input)
         
         pick_btn = QPushButton("选择")
         pick_btn.setFixedSize(60, 32)
+        pick_btn.setCursor(Qt.PointingHandCursor)
         pick_btn.clicked.connect(self._pick_icon)
-        pick_btn.setStyleSheet("""
-            QPushButton {
+        pick_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: #ffffff;
+                color: #333333;
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
                 background: #f5f5f5;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                color: #555;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background: #e8e8e8;
-            }
+                border-color: {self._accent_color};
+            }}
         """)
         icon_layout.addWidget(pick_btn)
         
         self._icon_preview = QLabel()
         self._icon_preview.setFixedSize(32, 32)
         self._icon_preview.setAlignment(Qt.AlignCenter)
-        self._icon_preview.setStyleSheet("background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;")
+        self._icon_preview.setStyleSheet("background: #fafafa; border: 1px solid #e0e0e0; border-radius: 6px;")
         icon_layout.addWidget(self._icon_preview)
         
         layout.addLayout(icon_layout)
@@ -120,47 +124,67 @@ class PluginEditDialog(QDialog):
         
         cancel_btn = QPushButton("取消")
         cancel_btn.setFixedSize(80, 32)
+        cancel_btn.setCursor(Qt.PointingHandCursor)
         cancel_btn.clicked.connect(self.reject)
-        btn_layout.addWidget(cancel_btn)
-        
-        ok_btn = QPushButton("确定")
-        ok_btn.setFixedSize(80, 32)
-        ok_btn.clicked.connect(self._on_ok)
-        ok_btn.setStyleSheet("""
+        cancel_btn.setStyleSheet("""
             QPushButton {
-                background: #1976D2;
-                color: white;
-                border: none;
-                border-radius: 4px;
+                background: #ffffff;
+                color: #333333;
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                font-size: 13px;
             }
             QPushButton:hover {
-                background: #1565C0;
+                background: #f5f5f5;
+                border-color: #d0d0d0;
             }
+        """)
+        btn_layout.addWidget(cancel_btn)
+
+        ok_btn = QPushButton("确定")
+        ok_btn.setFixedSize(80, 32)
+        ok_btn.setCursor(Qt.PointingHandCursor)
+        ok_btn.clicked.connect(self._on_ok)
+        accent = self._accent_color
+        r = int(accent[1:3], 16)
+        g = int(accent[3:5], 16)
+        b = int(accent[5:7], 16)
+        ok_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {accent};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background: rgba({r}, {g}, {b}, 0.8);
+            }}
         """)
         btn_layout.addWidget(ok_btn)
         layout.addLayout(btn_layout)
     
     def _add_field(self, layout: QVBoxLayout, label: str, value: str) -> QLineEdit:
         row_layout = QHBoxLayout()
-        
+
         label_widget = QLabel(label)
         label_widget.setFixedWidth(60)
-        label_widget.setStyleSheet("color: #1d1d1f; font-size: 13px;")
+        label_widget.setStyleSheet("color: #333333; font-size: 13px; background: transparent;")
         row_layout.addWidget(label_widget)
-        
+
         input_widget = QLineEdit(value)
-        input_widget.setStyleSheet("""
-            QLineEdit {
-                border: 1px solid #d0d0d0;
-                border-radius: 4px;
+        input_widget.setStyleSheet(f"""
+            QLineEdit {{
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
                 padding: 6px;
                 font-size: 13px;
-                color: #1d1d1f;
+                color: #333333;
                 background: #ffffff;
-            }
-            QLineEdit:focus {
-                border-color: #1976D2;
-            }
+            }}
+            QLineEdit:focus {{
+                border-color: {self._accent_color};
+            }}
         """)
         row_layout.addWidget(input_widget)
         
