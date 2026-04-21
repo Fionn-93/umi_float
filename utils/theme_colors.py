@@ -1,24 +1,28 @@
 """
 主题色彩派生工具
-从一个主色自动派生出完整的配色方案
+优化方案：精简同质化蓝色，引入现代配色，保持原生适配
 """
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt
 
 
 PRESET_THEMES = {
-    'github': {'name': 'GitHub', 'color': '#2EA44F'},
-    'ubuntu': {'name': 'Ubuntu', 'color': '#E95420'},
-    'macos': {'name': 'macOS', 'color': '#007AFF'},
-    'windows': {'name': 'Windows', 'color': '#0078D4'},
-    'deepin': {'name': 'Deepin', 'color': '#2CA7E8'},
-    'google': {'name': 'Google', 'color': '#4285F4'},
-    'spotify': {'name': 'Spotify', 'color': '#1DB954'},
-    'discord': {'name': 'Discord', 'color': '#5865F2'},
-    'wechat': {'name': 'WeChat', 'color': '#07C160'},
-    'steam': {'name': 'Steam', 'color': '#1B2838'},
-    'nvidia': {'name': 'NVIDIA', 'color': '#76B900'},
-    'amd': {'name': 'AMD', 'color': '#ED1C24'},
+    # 经典/原生类
+    'deepin': {'name': 'Deepin (默认)', 'color': '#2CA7E8'},
+    'macos': {'name': 'macOS Blue', 'color': '#007AFF'},
+    'github': {'name': 'GitHub Green', 'color': '#2EA44F'},
+
+    # 现代感/清新类
+    'lavender': {'name': '薰衣草紫', 'color': '#7B61FF'},
+    'coral': {'name': '珊瑚红', 'color': '#FF6B6B'},
+    'forest': {'name': '森林绿', 'color': '#4CAF50'},
+    'sunset': {'name': '夕阳橙', 'color': '#FF9F43'},
+    'rose': {'name': '玫瑰粉', 'color': '#FF85A2'},
+
+    # 沉稳/工具类
+    'steam': {'name': 'Steam Dark', 'color': '#1B2838'},
+    'spotify': {'name': 'Spotify Green', 'color': '#1DB954'},
+    'nvidia': {'name': 'NVIDIA Green', 'color': '#76B900'},
 }
 
 DEFAULT_THEME = 'deepin'
