@@ -9,7 +9,7 @@ from PyQt5.QtGui import (
 )
 
 from core.config import get_config
-from utils.theme_colors import theme_from_hex
+from utils.theme_colors import theme_from_key, DEFAULT_THEME
 from utils.memory_info import get_memory_usage
 from utils.network_info import NetworkMonitor
 from utils.weather_info import fetch_weather, get_cached_weather
@@ -40,8 +40,8 @@ class FloatButton(QLabel):
 
     def _apply_theme(self):
         config = get_config()
-        theme_color = config.get().get('theme_color', '#6495ED')
-        colors = theme_from_hex(theme_color)
+        theme_key = config.get().get('theme', DEFAULT_THEME)
+        colors = theme_from_key(theme_key)
         self.THEME_BG = colors['float_bg']
         self.THEME_TEXT = colors['float_text']
         self.THEME_BORDER = colors['float_border']

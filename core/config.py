@@ -49,14 +49,12 @@ class ConfigManager:
         if 'float_ball_size' in data and isinstance(data['float_ball_size'], int):
             config['float_ball_size'] = max(32, min(128, data['float_ball_size']))
         
-        if 'theme_color' in data and isinstance(data['theme_color'], str):
-            try:
-                from PyQt5.QtGui import QColor
-                c = QColor(data['theme_color'])
-                if c.isValid():
-                    config['theme_color'] = data['theme_color']
-            except Exception:
-                pass
+        from utils.theme_colors import PRESET_THEMES, DEFAULT_THEME
+        if 'theme' in data and isinstance(data['theme'], str):
+            if data['theme'] in PRESET_THEMES:
+                config['theme'] = data['theme']
+        elif 'theme_color' in data:
+            config['theme'] = DEFAULT_THEME
         
         if 'display_mode' in data and isinstance(data['display_mode'], str):
             if data['display_mode'] == 'memory':

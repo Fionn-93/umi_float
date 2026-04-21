@@ -10,7 +10,7 @@ from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QRadialGradient, QRegion,
 from PyQt5.QtSvg import QSvgRenderer
 
 from core.config import get_config
-from utils.theme_colors import theme_from_hex
+from utils.theme_colors import theme_from_key, DEFAULT_THEME
 
 
 class PieButton(QLabel):
@@ -56,8 +56,8 @@ class PieButton(QLabel):
     def _apply_theme(self):
         """从配置应用主题色"""
         config = get_config()
-        theme_color = config.get().get('theme_color', '#6495ED')
-        colors = theme_from_hex(theme_color)
+        theme_key = config.get().get('theme', DEFAULT_THEME)
+        colors = theme_from_key(theme_key)
         self.THEME_BG_NORMAL = colors['pie_bg_normal']
         self.THEME_BG_HOVERED = colors['pie_bg_hovered']
         self.THEME_TEXT_NORMAL = colors['pie_text_normal']
@@ -160,8 +160,8 @@ class CenterButton(QLabel):
     def _apply_theme(self):
         """从配置应用主题色"""
         config = get_config()
-        theme_color = config.get().get('theme_color', '#6495ED')
-        colors = theme_from_hex(theme_color)
+        theme_key = config.get().get('theme', DEFAULT_THEME)
+        colors = theme_from_key(theme_key)
         self.THEME_BG_NORMAL = colors['center_bg_normal']
         self.THEME_BG_HOVERED = colors['center_bg_hovered']
         self._theme_icon_normal_color = colors['pie_text_normal']

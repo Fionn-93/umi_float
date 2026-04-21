@@ -6,6 +6,51 @@ from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt
 
 
+PRESET_THEMES = {
+    'github': {'name': 'GitHub', 'color': '#2EA44F'},
+    'ubuntu': {'name': 'Ubuntu', 'color': '#E95420'},
+    'macos': {'name': 'macOS', 'color': '#007AFF'},
+    'windows': {'name': 'Windows', 'color': '#0078D4'},
+    'deepin': {'name': 'Deepin', 'color': '#2CA7E8'},
+    'google': {'name': 'Google', 'color': '#4285F4'},
+    'spotify': {'name': 'Spotify', 'color': '#1DB954'},
+    'discord': {'name': 'Discord', 'color': '#5865F2'},
+    'wechat': {'name': 'WeChat', 'color': '#07C160'},
+    'steam': {'name': 'Steam', 'color': '#1B2838'},
+    'nvidia': {'name': 'NVIDIA', 'color': '#76B900'},
+    'amd': {'name': 'AMD', 'color': '#ED1C24'},
+}
+
+DEFAULT_THEME = 'deepin'
+
+
+def get_theme_color(theme_key: str) -> str:
+    """获取预设主题的颜色值"""
+    theme = PRESET_THEMES.get(theme_key)
+    if theme:
+        return theme['color']
+    return PRESET_THEMES[DEFAULT_THEME]['color']
+
+
+def get_theme_name(theme_key: str) -> str:
+    """获取预设主题的显示名称"""
+    theme = PRESET_THEMES.get(theme_key)
+    if theme:
+        return theme['name']
+    return PRESET_THEMES[DEFAULT_THEME]['name']
+
+
+def get_all_themes() -> list:
+    """获取所有预设主题列表，返回 [(key, name), ...]"""
+    return [(key, theme['name']) for key, theme in PRESET_THEMES.items()]
+
+
+def theme_from_key(theme_key: str) -> dict:
+    """从预设主题键派生完整配色"""
+    hex_color = get_theme_color(theme_key)
+    return derive_theme(QColor(hex_color))
+
+
 def derive_theme(primary: QColor) -> dict:
     """
     从主色派生完整配色方案

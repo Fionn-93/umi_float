@@ -25,7 +25,7 @@ ICONS_DIR.mkdir(parents=True, exist_ok=True)
 DEFAULT_CONFIG = {
     "opacity": 0.9,
     "float_ball_size": 56,
-    "theme_color": "#6495ED",
+    "theme": "deepin",
     "display_mode": "clock",
     "pie_button_size": 56,
     "pie_spacing": 10,
