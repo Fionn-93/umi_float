@@ -32,6 +32,7 @@ DEFAULT_CONFIG = {
     "pie_expand_mode": "click",
     "auto_start": False,
     "show_on_fullscreen": False,
+    "weather_api_host": "je693837aw.re.qweatherapi.com",
     "weather_api_key": "",
     "weather_location": "101010100",
     "position": {"x": 100, "y": 100},

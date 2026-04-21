@@ -78,6 +78,9 @@ class ConfigManager:
         if 'show_on_fullscreen' in data and isinstance(data['show_on_fullscreen'], bool):
             config['show_on_fullscreen'] = data['show_on_fullscreen']
         
+        if 'weather_api_host' in data and isinstance(data['weather_api_host'], str):
+            config['weather_api_host'] = data['weather_api_host']
+        
         if 'weather_api_key' in data and isinstance(data['weather_api_key'], str):
             config['weather_api_key'] = data['weather_api_key']
         

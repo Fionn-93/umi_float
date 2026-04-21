@@ -103,7 +103,7 @@ class Application:
     
     def _on_page_changed(self, page_index):
         """页面切换时处理预览模式"""
-        if page_index == 1:
+        if page_index == 2:
             if not self.drawer_panel._preview_mode:
                 self.drawer_panel.enter_preview_mode(self.float_widget)
     

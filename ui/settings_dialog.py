@@ -1,10 +1,11 @@
 """
 设置对话框 - 参考 FeelUOwn 风格
 """
+import threading
 from PyQt5.QtWidgets import (
     QDialog, QHBoxLayout, QVBoxLayout, QListWidget, QListWidgetItem,
     QStackedWidget, QLabel, QSlider, QPushButton, QWidget,
-    QFrame, QScrollArea, QComboBox, QListView,
+    QFrame, QScrollArea, QComboBox, QListView, QLineEdit,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QFont
@@ -12,8 +13,10 @@ from PyQt5.QtGui import QFont
 from core.config import get_config
 from utils.theme_colors import get_all_themes, DEFAULT_THEME
 from utils.system_info import SystemInfo
+from utils.weather_info import fetch_weather, clear_weather_cache
 from plugins.plugin_manager import PluginManager
 from widgets.plugin_list_widget import PluginListWidget, DropForwardScrollArea
+from widgets.location_selector import LocationSelector
 from ui.plugin_edit_dialog import PluginEditDialog
 from ui.confirm_dialog import ConfirmDialog
 
@@ -77,6 +80,23 @@ QComboBox QAbstractItemView::item {{
 QComboBox QAbstractItemView::item:selected {{
     background-color: {accent_color}22;
     color: {accent_color};
+}}
+
+/* 输入框优化 */
+QLineEdit {{
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 6px;
+    font-size: 13px;
+    color: #333333;
+    background: #ffffff;
+    min-width: 200px;
+}}
+QLineEdit:focus {{
+    border-color: {accent_color};
+}}
+QLineEdit::placeholder {{
+    color: #aaaaaa;
 }}
 
 /* 滑块优化 */
@@ -213,10 +233,12 @@ class SettingsDialog(QDialog):
         self.stack.setObjectName("settingsStack")
 
         self.personalize_page = PersonalizePage(self)
+        self.weather_page = WeatherPage(self)
         self.extensions_page = ExtensionsPage(self)
 
         nav_items = [
             "个性化",
+            "天气",
             "扩展",
         ]
         for name in nav_items:
@@ -227,6 +249,7 @@ class SettingsDialog(QDialog):
         self.nav_list.setCurrentRow(0)
 
         self.stack.addWidget(self.personalize_page)
+        self.stack.addWidget(self.weather_page)
         self.stack.addWidget(self.extensions_page)
 
         body = QHBoxLayout()
@@ -385,6 +408,175 @@ class PersonalizePage(QWidget):
         mode = 'click' if index == 0 else 'hover'
         self.config.update(pie_expand_mode=mode)
         self.dialog.settings_changed.emit('pie_panel')
+
+
+class WeatherPage(QWidget):
+    test_finished = pyqtSignal(bool, str)
+
+    def __init__(self, parent_dialog):
+        super().__init__()
+        self.dialog = parent_dialog
+        self.config = get_config()
+        self._init_ui()
+        self.test_finished.connect(self._on_test_finished)
+
+    def _init_ui(self):
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet("QScrollArea { background-color: #ffffff; border: none; }")
+
+        content = QWidget()
+        content.setStyleSheet("background-color: #ffffff;")
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(0)
+
+        cfg = self.config.get()
+
+        page_title = QLabel("天气")
+        page_title.setFont(QFont("", 16, QFont.Bold))
+        page_title.setStyleSheet("color: #1d1d1f; background: transparent;")
+        layout.addWidget(page_title)
+
+        layout.addWidget(MidHeader("API 配置"))
+
+        self.api_host_input = QLineEdit()
+        self.api_host_input.setPlaceholderText("输入和风天气 API 地址")
+        self.api_host_input.setText(cfg.get('weather_api_host', ''))
+        self.api_host_input.editingFinished.connect(self._on_api_host_changed)
+        layout.addWidget(_SettingRow("API 地址", self.api_host_input))
+
+        self.api_key_input = QLineEdit()
+        self.api_key_input.setPlaceholderText("输入和风天气 API Key")
+        self.api_key_input.setText(cfg.get('weather_api_key', ''))
+        self.api_key_input.editingFinished.connect(self._on_api_key_changed)
+        layout.addWidget(_SettingRow("API Key", self.api_key_input))
+
+        layout.addWidget(MidHeader("位置"))
+
+        self.location_selector = LocationSelector(
+            current_id=cfg.get('weather_location', '101010100')
+        )
+        self.location_selector.location_changed.connect(self._on_location_changed)
+        location_row = _SettingRow("地区", self.location_selector)
+        layout.addWidget(location_row)
+
+        accent = self.dialog._accent_color
+        r = int(accent[1:3], 16)
+        g = int(accent[3:5], 16)
+        b = int(accent[5:7], 16)
+
+        test_row = QHBoxLayout()
+        test_row.setContentsMargins(16, 12, 16, 12)
+
+        self.test_btn = QPushButton("测试连接")
+        self.test_btn.setFixedSize(80, 32)
+        self.test_btn.setCursor(Qt.PointingHandCursor)
+        self.test_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {accent};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background: rgba({r}, {g}, {b}, 0.8);
+            }}
+            QPushButton:disabled {{
+                background: #cccccc;
+                color: #ffffff;
+            }}
+        """)
+        self.test_btn.clicked.connect(self._on_test_clicked)
+        test_row.addWidget(self.test_btn)
+
+        self.test_result_label = QLabel("")
+        self.test_result_label.setStyleSheet(
+            "color: #888888; font-size: 12px; background: transparent;"
+        )
+        self.test_result_label.setWordWrap(True)
+        test_row.addWidget(self.test_result_label, 1)
+
+        layout.addLayout(test_row)
+
+        layout.addStretch()
+
+        scroll.setWidget(content)
+
+        page_layout = QVBoxLayout(self)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.addWidget(scroll)
+
+    def _on_api_host_changed(self):
+        self.config.update(weather_api_host=self.api_host_input.text())
+        clear_weather_cache()
+        self.dialog.settings_changed.emit('float_ball')
+
+    def _on_api_key_changed(self):
+        self.config.update(weather_api_key=self.api_key_input.text())
+        clear_weather_cache()
+        self.dialog.settings_changed.emit('float_ball')
+
+    def _on_location_changed(self, location_id):
+        self.config.update(weather_location=location_id)
+        clear_weather_cache()
+        self.dialog.settings_changed.emit('float_ball')
+
+    def _on_test_clicked(self):
+        api_host = self.api_host_input.text().strip()
+        api_key = self.api_key_input.text().strip()
+        location = self.location_selector.current_location_id()
+
+        if not api_host or not api_key or not location:
+            self.test_result_label.setStyleSheet(
+                "color: #888888; font-size: 12px; background: transparent;"
+            )
+            self.test_result_label.setText("请填写完整的天气配置信息")
+            return
+
+        self.test_btn.setEnabled(False)
+        self.test_btn.setText("连接中...")
+        self.test_result_label.setStyleSheet(
+            "color: #888888; font-size: 12px; background: transparent;"
+        )
+        self.test_result_label.setText("正在连接...")
+
+        def do_test():
+            result = fetch_weather(api_key, location, api_host)
+            if result is not None:
+                msg = f"连接成功：{result.get('text', '')}, {result.get('temp', '--')}°C"
+                self.test_finished.emit(True, msg)
+            else:
+                self.test_finished.emit(False, "连接失败，请检查配置")
+
+        thread = threading.Thread(target=do_test, daemon=True)
+        thread.start()
+
+    def _on_test_finished(self, success, message):
+        self.test_btn.setEnabled(True)
+        self.test_btn.setText("测试连接")
+        accent = self.dialog._accent_color
+        r = int(accent[1:3], 16)
+        g = int(accent[3:5], 16)
+        b = int(accent[5:7], 16)
+        if success:
+            self.test_result_label.setStyleSheet(
+                "color: #4CAF50; font-size: 12px; background: transparent;"
+            )
+        else:
+            self.test_result_label.setStyleSheet(
+                "color: #FF6B6B; font-size: 12px; background: transparent;"
+            )
+        self.test_result_label.setText(message)
+        self.config.update(
+            weather_api_host=self.api_host_input.text(),
+            weather_api_key=self.api_key_input.text(),
+            weather_location=self.location_selector.current_location_id(),
+        )
+        clear_weather_cache()
+        self.dialog.settings_changed.emit('float_ball')
 
 
 class ExtensionsPage(QWidget):

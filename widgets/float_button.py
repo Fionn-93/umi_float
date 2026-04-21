@@ -89,7 +89,8 @@ class FloatButton(QLabel):
         cfg = config.get()
         api_key = cfg.get('weather_api_key', '')
         location = cfg.get('weather_location', '101010100')
-        self._weather_data = fetch_weather(api_key, location)
+        api_host = cfg.get('weather_api_host', '') or None
+        self._weather_data = fetch_weather(api_key, location, api_host)
 
     def _refresh_content(self):
         if self._mode == 'performance':

@@ -76,12 +76,20 @@ def get_icon_name(icon_code):
     return QWEATHER_ICON_MAP.get(str(icon_code), "weather-clear")
 
 
-def fetch_weather(api_key, location):
+def clear_weather_cache():
+    """清除天气缓存"""
+    global _CACHE
+    _CACHE['data'] = None
+    _CACHE['timestamp'] = 0
+
+
+def fetch_weather(api_key, location, api_host=None):
     """获取当前天气
 
     Args:
         api_key: 和风天气 API Key
         location: 城市 ID（如 101010100）
+        api_host: API 地址，为 None 时使用默认值
 
     Returns:
         dict: {
@@ -96,12 +104,14 @@ def fetch_weather(api_key, location):
     if not api_key:
         return None
 
+    if not api_host:
+        api_host = "je693837aw.re.qweatherapi.com"
+
     now = time.time()
     if _CACHE['data'] is not None and (now - _CACHE['timestamp']) < _CACHE['ttl']:
         return _CACHE['data']
 
     try:
-        api_host = "je693837aw.re.qweatherapi.com"
         url = (
             f"https://{api_host}/v7/weather/now"
             f"?key={api_key}&location={location}"
