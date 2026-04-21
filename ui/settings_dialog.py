@@ -11,9 +11,95 @@ from PyQt5.QtGui import QFont
 
 from core.config import get_config
 from utils.theme_colors import get_all_themes, DEFAULT_THEME
+from utils.system_info import SystemInfo
 from plugins.plugin_manager import PluginManager
 from widgets.plugin_list_widget import PluginListWidget, DropForwardScrollArea
 from ui.plugin_edit_dialog import PluginEditDialog
+
+
+def get_global_style(accent_color: str) -> str:
+    """获取全局样式表"""
+    return f"""
+/* 侧边栏优化 */
+#navList {{
+    background-color: #f7f7f7;
+    border: none;
+    border-right: 1px solid #eeeeee;
+    outline: none;
+    font-size: 13px;
+    padding: 8px 0px;
+}}
+#navList::item {{
+    height: 40px;
+    padding-left: 15px;
+    border-radius: 8px;
+    margin: 4px 10px;
+    color: #666666;
+}}
+#navList::item:selected {{
+    background-color: {accent_color};
+    color: #ffffff;
+    font-weight: 600;
+}}
+#navList::item:hover:!selected {{
+    background-color: #ececec;
+}}
+
+/* 下拉框优化 */
+QComboBox {{
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 4px 10px;
+    min-width: 120px;
+    background: #ffffff;
+    color: #333333;
+    font-size: 13px;
+}}
+QComboBox:hover {{
+    border-color: {accent_color};
+}}
+QComboBox::drop-down {{
+    border: none;
+}}
+QComboBox QAbstractItemView {{
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    selection-background-color: {accent_color}22;
+    outline: none;
+}}
+QComboBox QAbstractItemView::item {{
+    color: #333333;
+    background-color: #ffffff;
+    height: 32px;
+    padding-left: 10px;
+}}
+QComboBox QAbstractItemView::item:selected {{
+    background-color: {accent_color}22;
+    color: {accent_color};
+}}
+
+/* 滑块优化 */
+QSlider::groove:horizontal {{
+    height: 4px;
+    background: #e0e0e0;
+    border-radius: 2px;
+}}
+QSlider::handle:horizontal {{
+    width: 16px;
+    height: 16px;
+    margin: -6px 0;
+    background: #ffffff;
+    border: 1px solid #dcdcdc;
+    border-radius: 8px;
+}}
+QSlider::handle:horizontal:hover {{
+    border-color: {accent_color};
+}}
+QSlider::sub-page:horizontal {{
+    background: {accent_color};
+    border-radius: 2px;
+}}
+"""
 
 
 class MidHeader(QLabel):
@@ -22,35 +108,46 @@ class MidHeader(QLabel):
     def __init__(self, text, parent=None):
         super().__init__(text, parent)
         font = self.font()
-        font.setPixelSize(16)
-        font.setWeight(QFont.Bold)
+        font.setPixelSize(12)
+        font.setWeight(600)
         self.setFont(font)
-        self.setStyleSheet("color: #1d1d1f; padding: 16px 0 8px 0; background: transparent;")
+        self.setStyleSheet("color: #8e8e93; padding: 20px 0 8px 4px; background: transparent;")
 
 
 class _SettingRow(QWidget):
-    """设置行：左侧标签 + 右侧控件"""
+    """设置行：左侧标签 + 右侧控件，带 Hover 效果"""
 
     def __init__(self, label_text, control_widget, parent=None):
         super().__init__(parent)
+        self.setMinimumHeight(48)
+        self.setCursor(Qt.PointingHandCursor)
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 8, 0, 8)
+        layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(0)
 
         label = QLabel(label_text)
-        label.setStyleSheet("color: #1d1d1f; font-size: 13px; background: transparent;")
+        label.setStyleSheet("color: #333333; font-size: 13px; background: transparent;")
         layout.addWidget(label)
         layout.addStretch()
         layout.addWidget(control_widget)
+
+    def enterEvent(self, event):
+        self.setStyleSheet("background-color: #fafafa;")
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self.setStyleSheet("")
+        super().leaveEvent(event)
 
 
 class _LabeledSlider(QWidget):
     value_changed = pyqtSignal(int)
 
-    def __init__(self, min_val, max_val, default, suffix="", scale=1.0, parent=None):
+    def __init__(self, min_val, max_val, default, suffix="", scale=1.0, accent_color="#0078d4", parent=None):
         super().__init__(parent)
         self._scale = scale
         self._suffix = suffix
+        self._accent_color = accent_color
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -61,29 +158,6 @@ class _LabeledSlider(QWidget):
         self.slider.blockSignals(True)
         self.slider.setValue(default)
         self.slider.blockSignals(False)
-        self.slider.setObjectName("macSlider")
-        self.slider.setStyleSheet("""
-            #macSlider::groove:horizontal {
-                height: 4px;
-                background: #d0d0d0;
-                border-radius: 2px;
-            }
-            #macSlider::handle:horizontal {
-                width: 14px;
-                height: 14px;
-                margin: -5px 0;
-                background: #ffffff;
-                border: 1px solid #c0c0c0;
-                border-radius: 7px;
-            }
-            #macSlider::handle:horizontal:hover {
-                border-color: #999;
-            }
-            #macSlider::sub-page:horizontal {
-                background: #1976D2;
-                border-radius: 2px;
-            }
-        """)
         layout.addWidget(self.slider, 1)
 
         if scale == 1.0:
@@ -93,7 +167,7 @@ class _LabeledSlider(QWidget):
         self.value_label = QLabel(display_text)
         self.value_label.setFixedWidth(56)
         self.value_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.value_label.setStyleSheet("color: #1d1d1f; font-size: 12px; font-family: monospace; background: transparent;")
+        self.value_label.setStyleSheet("color: #333333; font-size: 12px; font-family: monospace; background: transparent;")
         layout.addWidget(self.value_label)
 
         self.slider.valueChanged.connect(self._on_value_changed)
@@ -115,6 +189,7 @@ class SettingsDialog(QDialog):
         self.config = get_config()
         self._drag_pos = None
         self._is_dragging = False
+        self._accent_color = SystemInfo.get_accent_color()
         self._init_ui()
 
     def _init_ui(self):
@@ -122,6 +197,7 @@ class SettingsDialog(QDialog):
         self.setWindowFlags(Qt.Dialog | Qt.WindowStaysOnTopHint)
         self.setMinimumSize(640, 440)
         self.resize(660, 460)
+        self.setStyleSheet(get_global_style(self._accent_color))
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -129,34 +205,8 @@ class SettingsDialog(QDialog):
 
         self.nav_list = QListWidget()
         self.nav_list.setObjectName("navList")
-        self.nav_list.setFixedWidth(150)
-        self.nav_list.setCurrentRow(0)
+        self.nav_list.setFixedWidth(180)
         self.nav_list.currentRowChanged.connect(self._switch_page)
-        self.nav_list.setStyleSheet("""
-            #navList {
-                background-color: #f6f6f6;
-                border: none;
-                border-right: 1px solid #e0e0e0;
-                outline: none;
-                font-size: 13px;
-                padding: 8px 0px;
-            }
-            #navList::item {
-                padding: 10px 16px;
-                border: none;
-                border-radius: 6px;
-                margin: 2px 8px;
-                color: #555;
-            }
-            #navList::item:selected {
-                background-color: #ffffff;
-                color: #1d1d1f;
-                font-weight: 500;
-            }
-            #navList::item:hover:!selected {
-                background-color: #ebebeb;
-            }
-        """)
 
         self.stack = QStackedWidget()
         self.stack.setObjectName("settingsStack")
@@ -165,13 +215,15 @@ class SettingsDialog(QDialog):
         self.extensions_page = ExtensionsPage(self)
 
         nav_items = [
-            "⚙  个性化",
-            "🧩  扩展",
+            "个性化",
+            "扩展",
         ]
         for name in nav_items:
             item = QListWidgetItem(name)
-            item.setSizeHint(QSize(0, 36))
+            item.setSizeHint(QSize(0, 40))
             self.nav_list.addItem(item)
+
+        self.nav_list.setCurrentRow(0)
 
         self.stack.addWidget(self.personalize_page)
         self.stack.addWidget(self.extensions_page)
@@ -224,6 +276,7 @@ class PersonalizePage(QWidget):
         layout.setSpacing(0)
 
         cfg = self.config.get()
+        accent = self.dialog._accent_color
 
         layout.addWidget(MidHeader("外观"))
 
@@ -236,34 +289,8 @@ class PersonalizePage(QWidget):
         )
         self.display_mode_combo.currentIndexChanged.connect(self._on_display_mode_changed)
         display_view = QListView()
-        display_view.setStyleSheet("color: #1d1d1f; background-color: #ffffff;")
+        display_view.setStyleSheet(f"color: #333333; background-color: #ffffff;")
         self.display_mode_combo.setView(display_view)
-        self.display_mode_combo.setStyleSheet("""
-            QComboBox {
-                border: 1px solid #d0d0d0;
-                border-radius: 4px;
-                padding: 4px 8px;
-                background: #ffffff;
-                color: #1d1d1f;
-                font-size: 13px;
-                min-width: 100px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: #ffffff;
-                border: 1px solid #d0d0d0;
-                selection-background-color: #e3f2fd;
-                outline: none;
-            }
-            QComboBox QAbstractItemView::item {
-                color: #1d1d1f;
-                background-color: #ffffff;
-                height: 28px;
-            }
-            QComboBox QAbstractItemView::item:selected {
-                background-color: #e3f2fd;
-                color: #1d1d1f;
-            }
-        """)
         layout.addWidget(_SettingRow("显示模式", self.display_mode_combo))
 
         self.theme_combo = QComboBox()
@@ -277,53 +304,27 @@ class PersonalizePage(QWidget):
                 break
         self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
         theme_view = QListView()
-        theme_view.setStyleSheet("color: #1d1d1f; background-color: #ffffff;")
+        theme_view.setStyleSheet(f"color: #333333; background-color: #ffffff;")
         self.theme_combo.setView(theme_view)
-        self.theme_combo.setStyleSheet("""
-            QComboBox {
-                border: 1px solid #d0d0d0;
-                border-radius: 4px;
-                padding: 4px 8px;
-                background: #ffffff;
-                color: #1d1d1f;
-                font-size: 13px;
-                min-width: 120px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: #ffffff;
-                border: 1px solid #d0d0d0;
-                selection-background-color: #e3f2fd;
-                outline: none;
-            }
-            QComboBox QAbstractItemView::item {
-                color: #1d1d1f;
-                background-color: #ffffff;
-                height: 28px;
-            }
-            QComboBox QAbstractItemView::item:selected {
-                background-color: #e3f2fd;
-                color: #1d1d1f;
-            }
-        """)
         layout.addWidget(_SettingRow("主题", self.theme_combo))
 
         layout.addWidget(MidHeader("悬浮球"))
 
-        self.size_slider = _LabeledSlider(32, 128, cfg.get('float_ball_size', 56), suffix=" px")
+        self.size_slider = _LabeledSlider(32, 128, cfg.get('float_ball_size', 56), suffix=" px", accent_color=accent)
         self.size_slider.value_changed.connect(self._on_size_changed)
         layout.addWidget(_SettingRow("大小", self.size_slider))
 
-        self.opacity_slider = _LabeledSlider(10, 100, int(cfg.get('opacity', 0.9) * 100), suffix="%", scale=0.01)
+        self.opacity_slider = _LabeledSlider(10, 100, int(cfg.get('opacity', 0.9) * 100), suffix="%", scale=0.01, accent_color=accent)
         self.opacity_slider.value_changed.connect(self._on_opacity_changed)
         layout.addWidget(_SettingRow("透明度", self.opacity_slider))
 
         layout.addWidget(MidHeader("扩展面板"))
 
-        self.pie_btn_slider = _LabeledSlider(32, 100, cfg.get('pie_button_size', 56), suffix=" px")
+        self.pie_btn_slider = _LabeledSlider(32, 100, cfg.get('pie_button_size', 56), suffix=" px", accent_color=accent)
         self.pie_btn_slider.value_changed.connect(self._on_pie_btn_size_changed)
         layout.addWidget(_SettingRow("图标大小", self.pie_btn_slider))
 
-        self.spacing_slider = _LabeledSlider(0, 30, cfg.get('pie_spacing', 10), suffix=" px")
+        self.spacing_slider = _LabeledSlider(0, 30, cfg.get('pie_spacing', 10), suffix=" px", accent_color=accent)
         self.spacing_slider.value_changed.connect(self._on_spacing_changed)
         layout.addWidget(_SettingRow("间距", self.spacing_slider))
 
@@ -389,21 +390,22 @@ class ExtensionsPage(QWidget):
 
         header_layout.addStretch()
 
+        accent = self.dialog._accent_color
         new_btn = QPushButton("+ 新建")
         new_btn.setFixedSize(80, 32)
         new_btn.setCursor(Qt.PointingHandCursor)
         new_btn.clicked.connect(self._on_new_plugin)
-        new_btn.setStyleSheet("""
-            QPushButton {
-                background: #1976D2;
+        new_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {accent};
                 color: white;
                 border: none;
-                border-radius: 4px;
+                border-radius: 6px;
                 font-size: 13px;
-            }
-            QPushButton:hover {
-                background: #1565C0;
-            }
+            }}
+            QPushButton:hover {{
+                background: {accent}dd;
+            }}
         """)
         header_layout.addWidget(new_btn)
 

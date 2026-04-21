@@ -69,3 +69,27 @@ class SystemInfo:
         """检测是否为暗色主题 - 已弃用，应用使用固定主题色"""
         # 返回 False 表示始终使用自定义亮色主题
         return False
+
+    @staticmethod
+    def get_accent_color() -> str:
+        """
+        获取 UOS 系统强调色
+        Returns:
+            强调色十六进制字符串，如 "#402FDB"
+            失败返回默认值 "#0078d4"
+        """
+        try:
+            bus = QDBusConnection.sessionBus()
+            iface = QDBusInterface(
+                "org.deepin.dde.Appearance1",
+                "/org/deepin/dde/Appearance1",
+                "org.freedesktop.DBus.Properties",
+                bus
+            )
+            if iface.isValid():
+                reply = iface.call("Get", "org.deepin.dde.Appearance1", "QtActiveColor")
+                if reply.type() == 2 and reply.arguments():
+                    return str(reply.arguments()[0])
+        except Exception:
+            pass
+        return "#0078d4"
