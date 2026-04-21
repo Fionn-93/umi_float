@@ -2,7 +2,7 @@
 悬浮球主窗口
 """
 from PyQt5.QtWidgets import QWidget, QVBoxLayout
-from PyQt5.QtCore import Qt, QRect, pyqtSignal
+from PyQt5.QtCore import Qt, QRect, pyqtSignal, QTimer
 from core.config import get_config
 from core.state import get_state
 from widgets.float_button import FloatButton
@@ -17,6 +17,7 @@ class FloatWidget(DraggableWidget):
     clicked = pyqtSignal()
     show_menu = pyqtSignal()
     drag_started = pyqtSignal()
+    hover_expand = pyqtSignal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -28,8 +29,13 @@ class FloatWidget(DraggableWidget):
         
         # 用于区分点击和拖动
         self._press_pos = None
-        self._drag_threshold = 10  # 超过10像素认为是拖动
-        self._drag_notified = False  # 是否已发出拖动信号
+        self._drag_threshold = 10
+        self._drag_notified = False
+        
+        self._hover_timer = QTimer(self)
+        self._hover_timer.setSingleShot(True)
+        self._hover_timer.setInterval(200)
+        self._hover_timer.timeout.connect(self.hover_expand.emit)
         
         self._setup_window()
         self._setup_ui()
@@ -99,9 +105,9 @@ class FloatWidget(DraggableWidget):
     def mousePressEvent(self, event):
         """鼠标按下事件"""
         if event.button() == Qt.LeftButton:
-            # 记录按下位置，用于区分点击和拖动
             self._press_pos = event.globalPos()
             self._drag_notified = False
+            self._hover_timer.stop()
             super().mousePressEvent(event)
         elif event.button() == Qt.RightButton:
             self.show_menu.emit()
@@ -118,6 +124,7 @@ class FloatWidget(DraggableWidget):
             distance = (event.globalPos() - self._press_pos).manhattanLength()
             if distance >= self._drag_threshold:
                 self._drag_notified = True
+                self._hover_timer.stop()
                 self.drag_started.emit()
     
     def snap_to_edge(self):
@@ -147,3 +154,13 @@ class FloatWidget(DraggableWidget):
                     self.clicked.emit()
                 
                 self._press_pos = None
+
+    def enterEvent(self, event):
+        cfg = self.config.get()
+        if cfg.get('pie_expand_mode', 'click') == 'hover':
+            self._hover_timer.start()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._hover_timer.stop()
+        super().leaveEvent(event)

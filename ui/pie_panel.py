@@ -4,7 +4,7 @@
 import math
 from functools import partial
 
-from PyQt5.QtWidgets import QWidget, QLabel
+from PyQt5.QtWidgets import QWidget, QLabel, QMenu
 from PyQt5.QtCore import Qt, pyqtSignal, pyqtProperty, QPropertyAnimation, QEasingCurve, QTimer, QPoint, QByteArray
 from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QRadialGradient, QRegion, QPixmap, QIcon
 from PyQt5.QtSvg import QSvgRenderer
@@ -18,9 +18,11 @@ class PieButton(QLabel):
     """环形菜单按钮"""
     
     clicked = pyqtSignal()
+    context_menu_requested = pyqtSignal(str)
     
-    def __init__(self, icon_name: str, name: str, description: str = "", size: int = 64, parent=None):
+    def __init__(self, plugin_id: str, icon_name: str, name: str, description: str = "", size: int = 64, parent=None):
         super().__init__(parent)
+        self.plugin_id = plugin_id
         self.name = name
         self.icon_name = icon_name
         self.size = size
@@ -132,6 +134,24 @@ class PieButton(QLabel):
             self._update_style(False)
         super().leaveEvent(event)
     
+    def contextMenuEvent(self, event):
+        if not self._hover_enabled:
+            return
+        panel = self.parent()
+        if panel and hasattr(panel, '_leave_timer'):
+            panel._leave_timer.stop()
+            panel._context_menu_active = True
+        menu = QMenu(self)
+        edit_action = menu.addAction("编辑扩展")
+        disable_action = menu.addAction("禁用扩展")
+        action = menu.exec_(event.globalPos())
+        if panel and hasattr(panel, '_context_menu_active'):
+            panel._context_menu_active = False
+        if action == edit_action:
+            self.context_menu_requested.emit(self.plugin_id)
+        elif action == disable_action:
+            self.context_menu_requested.emit(f"__disable__:{self.plugin_id}")
+    
     def mousePressEvent(self, event):
         """鼠标点击"""
         if event.button() == Qt.LeftButton:
@@ -149,6 +169,8 @@ class CenterButton(QLabel):
     """中心返回按钮"""
     
     clicked = pyqtSignal()
+    drag_started = pyqtSignal()
+    show_menu = pyqtSignal()
     
     def __init__(self, size: int = 80, parent=None):
         super().__init__(parent)
@@ -157,6 +179,9 @@ class CenterButton(QLabel):
         self.setAlignment(Qt.AlignCenter)
         self.setCursor(Qt.PointingHandCursor)
         self._hover_enabled = True
+        self._press_pos = None
+        self._drag_threshold = 10
+        self._is_dragging = False
         
         self._apply_theme()
         self._update_icon(False)
@@ -238,10 +263,35 @@ class CenterButton(QLabel):
         super().leaveEvent(event)
     
     def mousePressEvent(self, event):
-        """鼠标点击"""
         if event.button() == Qt.LeftButton:
-            self.clicked.emit()
+            self._press_pos = event.globalPos()
+            self._is_dragging = False
         super().mousePressEvent(event)
+    
+    def mouseMoveEvent(self, event):
+        if self._press_pos is not None and not self._is_dragging:
+            distance = (event.globalPos() - self._press_pos).manhattanLength()
+            if distance >= self._drag_threshold:
+                self._is_dragging = True
+                self.drag_started.emit()
+        super().mouseMoveEvent(event)
+    
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            if not self._is_dragging and self._press_pos is not None:
+                self.clicked.emit()
+            self._press_pos = None
+            self._is_dragging = False
+        super().mouseReleaseEvent(event)
+    
+    def contextMenuEvent(self, event):
+        panel = self.parent()
+        if panel and hasattr(panel, '_leave_timer'):
+            panel._leave_timer.stop()
+            panel._context_menu_active = True
+        self.show_menu.emit()
+        if panel and hasattr(panel, '_context_menu_active'):
+            panel._context_menu_active = False
 
 
 class PiePanel(QWidget):
@@ -249,10 +299,14 @@ class PiePanel(QWidget):
     
     plugin_executed = pyqtSignal(str)
     panel_closed = pyqtSignal()
+    show_menu = pyqtSignal()
+    plugin_edit_requested = pyqtSignal(str)
+    plugin_disable_requested = pyqtSignal(str)
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self._preview_mode = False
+        self._hover_mode = False
         self._setup_window()
         self._setup_ui()
         
@@ -264,13 +318,25 @@ class PiePanel(QWidget):
         self._animation_group = []
         self._is_expanded = False
         self._is_collapsing = False
+        self._panel_dragging = False
+        self._panel_drag_offset = QPoint()
+        self._pending_float_pos = None
+        self._context_menu_active = False
         self._shadow_timer = QTimer(self)
         self._shadow_timer.setInterval(16)
         self._shadow_timer.timeout.connect(self.update)
+        
+        self._leave_timer = QTimer(self)
+        self._leave_timer.setSingleShot(True)
+        self._leave_timer.setInterval(300)
+        self._leave_timer.timeout.connect(self._on_leave_timeout)
     
     def _setup_window(self):
         """设置窗口属性"""
-        self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
+        if self._hover_mode:
+            self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        else:
+            self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setFixedSize(400, 400)
     
@@ -279,7 +345,57 @@ class PiePanel(QWidget):
         # 中心返回按钮
         self._center_label = CenterButton(size=80, parent=self)
         self._center_label.clicked.connect(self.hide_panel)
+        self._center_label.drag_started.connect(self._start_panel_drag)
+        self._center_label.show_menu.connect(self.show_menu.emit)
         self._center_label.hide()
+    
+    def set_hover_mode(self, enabled: bool):
+        self._hover_mode = enabled
+    
+    def enterEvent(self, event):
+        self._leave_timer.stop()
+        super().enterEvent(event)
+    
+    def leaveEvent(self, event):
+        if self._context_menu_active:
+            super().leaveEvent(event)
+            return
+        if self._hover_mode and self._is_expanded and not self._preview_mode:
+            self._leave_timer.start()
+        super().leaveEvent(event)
+    
+    def _on_leave_timeout(self):
+        from PyQt5.QtWidgets import QApplication
+        global_pos = self.cursor().pos()
+        widget = QApplication.widgetAt(global_pos)
+        if widget and (widget is self or self.isAncestorOf(widget)):
+            return
+        if self._is_expanded and not self._is_collapsing:
+            self.hide_panel()
+    
+    def _start_panel_drag(self):
+        self._panel_dragging = True
+        self._panel_drag_offset = self.mapFromGlobal(self.cursor().pos())
+    
+    def _do_panel_drag(self, global_pos):
+        if not self._panel_dragging:
+            return
+        new_pos = global_pos - self._panel_drag_offset
+        self.move(new_pos)
+    
+    def _end_panel_drag(self):
+        if not self._panel_dragging:
+            return
+        self._panel_dragging = False
+        panel_center_global = self.mapToGlobal(self._center_pos)
+        from utils.system_info import SystemInfo
+        screen_rect = SystemInfo.get_screen_geometry()
+        float_size = get_config().get().get('float_ball_size', 56)
+        float_x = panel_center_global.x() - float_size // 2
+        float_y = panel_center_global.y() - float_size // 2
+        float_x = max(screen_rect.left(), min(float_x, screen_rect.right() - float_size))
+        float_y = max(screen_rect.top(), min(float_y, screen_rect.bottom() - float_size))
+        self._pending_float_pos = QPoint(float_x, float_y)
     
     def set_plugins(self, plugins):
         """设置插件列表"""
@@ -303,8 +419,9 @@ class PiePanel(QWidget):
             name = plugin_config.name
             description = plugin_config.description
             
-            btn = PieButton(icon_name, name, description=description, size=button_size, parent=self)
+            btn = PieButton(plugin_id, icon_name, name, description=description, size=button_size, parent=self)
             btn.clicked.connect(partial(self._on_plugin_clicked, plugin_id))
+            btn.context_menu_requested.connect(self._on_plugin_context_menu)
             btn.hide()
             self._buttons.append(btn)
         
@@ -316,6 +433,18 @@ class PiePanel(QWidget):
             return
         self.plugin_executed.emit(plugin_id)
         self.hide_panel()
+    
+    def _on_plugin_context_menu(self, payload: str):
+        """插件右键菜单回调"""
+        if self._preview_mode:
+            return
+        if payload.startswith("__disable__:"):
+            plugin_id = payload[len("__disable__:"):]
+            self.plugin_disable_requested.emit(plugin_id)
+            self.hide_panel()
+        else:
+            self.plugin_edit_requested.emit(payload)
+            self.hide_panel()
     
     def enter_preview_mode(self, parent_widget):
         """进入预览模式：展开面板供设置预览，禁用交互"""
@@ -375,6 +504,11 @@ class PiePanel(QWidget):
     def show_panel(self, parent_widget, animate=True):
         """显示面板"""
         self.clearMask()
+        self._leave_timer.stop()
+        
+        if self._hover_mode:
+            self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+            self.setAttribute(Qt.WA_TranslucentBackground)
         
         parent_pos = parent_widget.pos()
         parent_size = parent_widget.size()
@@ -648,15 +782,35 @@ class PiePanel(QWidget):
     def _hide_immediate(self):
         """立即隐藏"""
         self._shadow_timer.stop()
+        self._leave_timer.stop()
         self._is_expanded = False
         self._is_collapsing = False
         self.clearMask()
         self.hide()
         self.panel_closed.emit()
     
+    def mouseMoveEvent(self, event):
+        if self._panel_dragging:
+            self._do_panel_drag(event.globalPos())
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+    
+    def mouseReleaseEvent(self, event):
+        if self._panel_dragging:
+            self._end_panel_drag()
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+    
     def hideEvent(self, event):
         """隐藏事件 - 拦截 Popup 自动关闭，先播放收起动画"""
         if self._preview_mode:
+            super().hideEvent(event)
+            return
+        if self._hover_mode:
+            self._is_expanded = False
+            self._is_collapsing = False
             super().hideEvent(event)
             return
         if self._is_expanded and not self._is_collapsing:

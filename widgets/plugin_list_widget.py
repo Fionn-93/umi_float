@@ -90,6 +90,7 @@ class PluginListWidget(QWidget):
         
         self._disabled_section = self._create_section("已禁用")
         self._main_layout.addWidget(self._disabled_section)
+        self._main_layout.addStretch()
         
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
         self.setAcceptDrops(True)

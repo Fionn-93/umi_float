@@ -29,6 +29,7 @@ DEFAULT_CONFIG = {
     "display_mode": "clock",
     "pie_button_size": 56,
     "pie_spacing": 10,
+    "pie_expand_mode": "click",
     "auto_start": False,
     "show_on_fullscreen": False,
     "weather_api_key": "",

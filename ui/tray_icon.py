@@ -3,7 +3,9 @@
 """
 from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QAction
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt5.QtCore import QObject, pyqtSignal, QFileInfo
+
+from core.constants import DATA_DIR
 
 
 class TrayIcon(QSystemTrayIcon):
@@ -22,12 +24,10 @@ class TrayIcon(QSystemTrayIcon):
         """设置托盘"""
         self.setToolTip("Umi-Float 桌面工具箱")
         
-        # 尝试加载系统图标
-        icon = QIcon.fromTheme("applications-utilities")
+        icon_path = QFileInfo(__file__).absolutePath() + "/../assets/icon.png"
+        icon = QIcon(icon_path)
         if icon.isNull():
-            icon = QIcon.fromTheme("preferences-system")
-        if icon.isNull():
-            icon = QIcon.fromTheme("system-run")
+            icon = QIcon.fromTheme("applications-utilities")
         
         self.setIcon(icon)
         self.setVisible(True)

@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QLineEdit, QTextEdit, QFrame, QSizePolicy
 )
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon, QFont
+from PyQt5.QtGui import QIcon, QFont, QPixmap
 
 from ui.icon_picker_dialog import IconPickerDialog
 from utils.system_info import SystemInfo
@@ -30,6 +30,7 @@ class PluginEditDialog(QDialog):
         self.setWindowFlags(Qt.Dialog | Qt.WindowStaysOnTopHint)
         self.setMinimumSize(400, 320)
         self.resize(420, 340)
+        self.setStyleSheet("background-color: #ffffff;")
 
         self._init_ui()
     

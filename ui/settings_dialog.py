@@ -279,20 +279,12 @@ class PersonalizePage(QWidget):
         cfg = self.config.get()
         accent = self.dialog._accent_color
 
-        layout.addWidget(MidHeader("外观"))
+        page_title = QLabel("个性化")
+        page_title.setFont(QFont("", 16, QFont.Bold))
+        page_title.setStyleSheet("color: #1d1d1f; background: transparent;")
+        layout.addWidget(page_title)
 
-        self.display_mode_combo = QComboBox()
-        self.display_mode_combo.addItems(["时钟", "性能", "天气"])
-        self.display_mode_combo.setCurrentText(
-            {"clock": "时钟", "performance": "性能", "weather": "天气"}.get(
-                cfg.get('display_mode', 'clock'), "时钟"
-            )
-        )
-        self.display_mode_combo.currentIndexChanged.connect(self._on_display_mode_changed)
-        display_view = QListView()
-        display_view.setStyleSheet(f"color: #333333; background-color: #ffffff;")
-        self.display_mode_combo.setView(display_view)
-        layout.addWidget(_SettingRow("显示模式", self.display_mode_combo))
+        layout.addWidget(MidHeader("外观"))
 
         self.theme_combo = QComboBox()
         themes = get_all_themes()
@@ -311,6 +303,19 @@ class PersonalizePage(QWidget):
 
         layout.addWidget(MidHeader("悬浮球"))
 
+        self.display_mode_combo = QComboBox()
+        self.display_mode_combo.addItems(["时钟", "性能", "天气"])
+        self.display_mode_combo.setCurrentText(
+            {"clock": "时钟", "performance": "性能", "weather": "天气"}.get(
+                cfg.get('display_mode', 'clock'), "时钟"
+            )
+        )
+        self.display_mode_combo.currentIndexChanged.connect(self._on_display_mode_changed)
+        display_view = QListView()
+        display_view.setStyleSheet(f"color: #333333; background-color: #ffffff;")
+        self.display_mode_combo.setView(display_view)
+        layout.addWidget(_SettingRow("显示模式", self.display_mode_combo))
+
         self.size_slider = _LabeledSlider(32, 128, cfg.get('float_ball_size', 56), suffix=" px", accent_color=accent)
         self.size_slider.value_changed.connect(self._on_size_changed)
         layout.addWidget(_SettingRow("大小", self.size_slider))
@@ -320,6 +325,16 @@ class PersonalizePage(QWidget):
         layout.addWidget(_SettingRow("透明度", self.opacity_slider))
 
         layout.addWidget(MidHeader("扩展面板"))
+
+        self.expand_mode_combo = QComboBox()
+        self.expand_mode_combo.addItems(["鼠标点击", "鼠标悬浮"])
+        expand_mode = cfg.get('pie_expand_mode', 'click')
+        self.expand_mode_combo.setCurrentIndex(0 if expand_mode == 'click' else 1)
+        self.expand_mode_combo.currentIndexChanged.connect(self._on_expand_mode_changed)
+        expand_view = QListView()
+        expand_view.setStyleSheet(f"color: #333333; background-color: #ffffff;")
+        self.expand_mode_combo.setView(expand_view)
+        layout.addWidget(_SettingRow("展开方式", self.expand_mode_combo))
 
         self.pie_btn_slider = _LabeledSlider(32, 100, cfg.get('pie_button_size', 56), suffix=" px", accent_color=accent)
         self.pie_btn_slider.value_changed.connect(self._on_pie_btn_size_changed)
@@ -366,6 +381,11 @@ class PersonalizePage(QWidget):
         self.config.update(pie_spacing=value)
         self.dialog.settings_changed.emit('pie_panel')
 
+    def _on_expand_mode_changed(self, index):
+        mode = 'click' if index == 0 else 'hover'
+        self.config.update(pie_expand_mode=mode)
+        self.dialog.settings_changed.emit('pie_panel')
+
 
 class ExtensionsPage(QWidget):
     def __init__(self, parent):
@@ -375,21 +395,18 @@ class ExtensionsPage(QWidget):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
 
-        header = QWidget()
-        header.setStyleSheet("background-color: #ffffff;")
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(20, 20, 20, 12)
-        header_layout.setSpacing(12)
+        title_row = QHBoxLayout()
+        title_row.setContentsMargins(0, 0, 0, 0)
+        title_row.setSpacing(0)
 
         title = QLabel("扩展管理")
         title.setFont(QFont("", 16, QFont.Bold))
         title.setStyleSheet("color: #1d1d1f; background: transparent;")
-        header_layout.addWidget(title)
-
-        header_layout.addStretch()
+        title_row.addWidget(title)
+        title_row.addStretch()
 
         accent = self.dialog._accent_color
         r = int(accent[1:3], 16)
@@ -411,9 +428,8 @@ class ExtensionsPage(QWidget):
                 background: rgba({r}, {g}, {b}, 0.8);
             }}
         """)
-        header_layout.addWidget(new_btn)
-
-        layout.addWidget(header)
+        title_row.addWidget(new_btn)
+        layout.addLayout(title_row)
 
         scroll = DropForwardScrollArea()
         scroll.setWidgetResizable(True)
@@ -428,8 +444,9 @@ class ExtensionsPage(QWidget):
         self.plugin_list.delete_requested.connect(self._on_delete_plugin)
 
         scroll.setWidget(self.plugin_list)
-        layout.addWidget(scroll)
+        layout.addWidget(scroll, 1)
 
+        self.setAttribute(Qt.WA_StyledBackground, True)
         self.setStyleSheet("background-color: #ffffff;")
 
         self._refresh_list()

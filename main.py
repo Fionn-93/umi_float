@@ -3,8 +3,9 @@
 Umi-Float 主入口
 """
 import sys
-from PyQt5.QtWidgets import QApplication, QMenu, QAction
-from PyQt5.QtCore import QTimer
+from PyQt5.QtWidgets import QApplication, QMenu, QAction, QDialog
+from PyQt5.QtCore import QTimer, QPoint
+from PyQt5.QtGui import QIcon
 
 from core.config import get_config
 from core.state import get_state
@@ -14,6 +15,7 @@ from ui.float_widget import FloatWidget
 from ui.tray_icon import TrayIcon
 from ui.pie_panel import PiePanel
 from ui.settings_dialog import SettingsDialog
+from ui.plugin_edit_dialog import PluginEditDialog
 from plugins.plugin_manager import PluginManager
 
 
@@ -23,6 +25,10 @@ class Application:
     def __init__(self):
         self.app = QApplication(sys.argv)
         self.app.setQuitOnLastWindowClosed(False)
+        
+        import os
+        icon_path = os.path.join(os.path.dirname(__file__), "assets", "icon.png")
+        self.app.setWindowIcon(QIcon(icon_path))
         
         self.config = get_config()
         self.state = get_state()
@@ -45,9 +51,13 @@ class Application:
         self.float_widget.clicked.connect(self._toggle_panel)
         self.float_widget.show_menu.connect(self._show_context_menu)
         self.float_widget.drag_started.connect(self.drawer_panel.hide_panel)
+        self.float_widget.hover_expand.connect(self._on_hover_expand)
         
         self.drawer_panel.plugin_executed.connect(self._execute_plugin)
         self.drawer_panel.panel_closed.connect(self._on_panel_closed)
+        self.drawer_panel.show_menu.connect(self._show_context_menu)
+        self.drawer_panel.plugin_edit_requested.connect(self._on_plugin_edit)
+        self.drawer_panel.plugin_disable_requested.connect(self._on_plugin_disable)
         
         # 加载插件到面板
         self.plugin_manager.initialize()
@@ -78,14 +88,18 @@ class Application:
             self.settings_dialog.page_changed.connect(self._on_page_changed)
             self.settings_dialog.finished.connect(self._on_settings_closed)
             self.settings_dialog.show()
-            self.drawer_panel.enter_preview_mode(self.float_widget)
+            if not self.drawer_panel.isVisible():
+                self.drawer_panel.enter_preview_mode(self.float_widget)
         else:
             self.settings_dialog.raise_()
             self.settings_dialog.activateWindow()
     
     def _on_settings_closed(self):
         """设置窗口关闭时退出预览模式"""
-        self.drawer_panel.exit_preview_mode()
+        if self.drawer_panel._preview_mode:
+            self.drawer_panel.exit_preview_mode()
+        if self.drawer_panel._hover_mode and self.drawer_panel.isVisible():
+            self.drawer_panel._leave_timer.start()
     
     def _on_page_changed(self, page_index):
         """页面切换时处理预览模式"""
@@ -120,14 +134,36 @@ class Application:
     
     def _toggle_panel(self):
         """切换抽屉面板显示"""
+        cfg = self.config.get()
+        if cfg.get('pie_expand_mode', 'click') != 'click':
+            return
         if self.drawer_panel.isVisible():
             self.drawer_panel.hide_panel()
         else:
             self.float_widget.hide()
             self.drawer_panel.show_panel(self.float_widget)
     
+    def _on_hover_expand(self):
+        """悬浮展开面板"""
+        cfg = self.config.get()
+        if cfg.get('pie_expand_mode', 'click') != 'hover':
+            return
+        if self.drawer_panel.isVisible():
+            return
+        self.drawer_panel.set_hover_mode(True)
+        self.float_widget.hide()
+        self.drawer_panel.show_panel(self.float_widget)
+    
     def _on_panel_closed(self):
         """面板关闭后恢复悬浮球"""
+        if self.drawer_panel._pending_float_pos is not None:
+            self.float_widget.move(self.drawer_panel._pending_float_pos)
+            self.config.update(
+                position={'x': self.drawer_panel._pending_float_pos.x(),
+                          'y': self.drawer_panel._pending_float_pos.y()}
+            )
+            self.drawer_panel._pending_float_pos = None
+        self.drawer_panel.set_hover_mode(False)
         self.float_widget.show()
     
     def _show_context_menu(self):
@@ -140,7 +176,54 @@ class Application:
         quit_action = QAction("退出", self.app)
         quit_action.triggered.connect(self._quit)
         menu.addAction(quit_action)
-        menu.exec_(self.float_widget.mapToGlobal(self.float_widget.rect().center()))
+        if self.float_widget.isVisible():
+            menu.exec_(self.float_widget.mapToGlobal(self.float_widget.rect().center()))
+        else:
+            from PyQt5.QtGui import QCursor
+            menu.exec_(QCursor.pos())
+    
+    def _on_plugin_edit(self, plugin_id: str):
+        """从面板右键编辑插件"""
+        pm = PluginManager.get()
+        enabled, disabled = pm.get_ordered_plugins()
+        plugin_config = None
+        for pid, config in enabled + disabled:
+            if pid == plugin_id:
+                plugin_config = config
+                break
+        if plugin_config is None:
+            return
+        dialog = PluginEditDialog(
+            plugin_id=plugin_id,
+            name=plugin_config.name,
+            description=plugin_config.description,
+            icon=plugin_config.icon,
+            exec_cmd=plugin_config.exec,
+            parent=None
+        )
+        if dialog.exec_() == QDialog.Accepted:
+            data = dialog.get_data()
+            pm.update_plugin_override(plugin_id, {
+                'name': data['name'],
+                'description': data['description'],
+                'icon': data['icon'],
+                'exec': data['exec'],
+            })
+            self._refresh_panel_plugins()
+    
+    def _on_plugin_disable(self, plugin_id: str):
+        """从面板右键禁用插件"""
+        pm = PluginManager.get()
+        pm.disable_plugin(plugin_id)
+        self._refresh_panel_plugins()
+    
+    def _refresh_panel_plugins(self):
+        """刷新面板插件列表"""
+        self.plugin_manager.reload_plugins()
+        enabled_plugins, _ = self.plugin_manager.get_ordered_plugins()
+        plugins_dict = {pid: config for pid, config in enabled_plugins}
+        self.drawer_panel.set_plugins(plugins_dict)
+        self.drawer_panel.show_panel(self.float_widget, animate=False)
     
     def _execute_plugin(self, plugin_id: str):
         """执行插件"""

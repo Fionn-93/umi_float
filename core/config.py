@@ -68,6 +68,10 @@ class ConfigManager:
         if 'pie_spacing' in data and isinstance(data['pie_spacing'], int):
             config['pie_spacing'] = max(0, min(30, data['pie_spacing']))
         
+        if 'pie_expand_mode' in data and isinstance(data['pie_expand_mode'], str):
+            if data['pie_expand_mode'] in ('click', 'hover'):
+                config['pie_expand_mode'] = data['pie_expand_mode']
+        
         if 'auto_start' in data and isinstance(data['auto_start'], bool):
             config['auto_start'] = data['auto_start']
         
