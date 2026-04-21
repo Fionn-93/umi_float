@@ -6,10 +6,11 @@ from functools import partial
 
 from PyQt5.QtWidgets import QWidget, QLabel
 from PyQt5.QtCore import Qt, pyqtSignal, pyqtProperty, QPropertyAnimation, QEasingCurve, QTimer, QPoint, QByteArray
-from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QRadialGradient, QRegion, QPixmap
+from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QRadialGradient, QRegion, QPixmap, QIcon
 from PyQt5.QtSvg import QSvgRenderer
 
 from core.config import get_config
+from core.constants import DATA_DIR
 from utils.theme_colors import theme_from_key, DEFAULT_THEME
 
 
@@ -27,30 +28,33 @@ class PieButton(QLabel):
         self.setAlignment(Qt.AlignCenter)
         self._scale = 0.0
         self._hover_enabled = True
-        
+
         tooltip = name
         if description:
             tooltip += f"\n{description}"
         self.setToolTip(tooltip)
-        
-        from PyQt5.QtGui import QIcon
-        from PyQt5.QtWidgets import QApplication, QStyle
-        
-        # 尝试从系统图标主题获取图标
-        icon = QIcon.fromTheme(icon_name)
+
+        from PyQt5.QtWidgets import QApplication
+
+        icon = None
+        if icon_name.startswith("icons/"):
+            icon_path = DATA_DIR / icon_name
+            if icon_path.exists():
+                icon = QIcon(str(icon_path))
+
+        if icon is None or icon.isNull():
+            icon = QIcon.fromTheme(icon_name)
+
         if icon.isNull():
-            # 如果没有图标，使用首字母
             self.setText(name[0].upper())
         else:
-            # 考虑 HiDPI：乘以设备像素比获取高清 pixmap
             app = QApplication.instance()
             dpr = app.devicePixelRatio() if app else 1.0
-            icon_size = int(size * 0.618)  # 黄金比例
+            icon_size = int(size * 0.618)
             pixmap = icon.pixmap(int(icon_size * dpr), int(icon_size * dpr))
             pixmap.setDevicePixelRatio(dpr)
             self.setPixmap(pixmap)
-        
-        # 设置样式
+
         self._apply_theme()
     
     def _apply_theme(self):

@@ -204,21 +204,27 @@ class PluginEditDialog(QDialog):
         if not icon_name:
             self._icon_preview.clear()
             return
-        
+
+        from PyQt5.QtWidgets import QApplication
+        app = QApplication.instance()
+        dpr = app.devicePixelRatio() if app else 1.0
+
         if icon_name.startswith("icons/"):
             from core.constants import DATA_DIR
-            from pathlib import Path
             icon_path = DATA_DIR / icon_name
             if icon_path.exists():
-                from PyQt5.QtGui import QPixmap
                 pixmap = QPixmap(str(icon_path))
                 if not pixmap.isNull():
-                    self._icon_preview.setPixmap(pixmap.scaled(28, 28, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                    scaled = pixmap.scaled(int(28 * dpr), int(28 * dpr), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    scaled.setDevicePixelRatio(dpr)
+                    self._icon_preview.setPixmap(scaled)
                     return
-        
+
         icon = QIcon.fromTheme(icon_name)
         if not icon.isNull():
-            self._icon_preview.setPixmap(icon.pixmap(28, 28))
+            pixmap = icon.pixmap(int(28 * dpr), int(28 * dpr))
+            pixmap.setDevicePixelRatio(dpr)
+            self._icon_preview.setPixmap(pixmap)
         else:
             self._icon_preview.clear()
     

@@ -398,7 +398,11 @@ class IconPickerDialog(QDialog):
         if file_path:
             pixmap = QPixmap(file_path)
             if not pixmap.isNull():
-                scaled = pixmap.scaled(96, 96, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                from PyQt5.QtWidgets import QApplication
+                app = QApplication.instance()
+                dpr = app.devicePixelRatio() if app else 1.0
+                scaled = pixmap.scaled(int(96 * dpr), int(96 * dpr), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                scaled.setDevicePixelRatio(dpr)
                 self._local_preview.setPixmap(scaled)
                 self._local_path_label.setText(file_path)
 
@@ -407,17 +411,25 @@ class IconPickerDialog(QDialog):
                 self._update_preview()
 
     def _update_preview(self):
+        from PyQt5.QtWidgets import QApplication
+        app = QApplication.instance()
+        dpr = app.devicePixelRatio() if app else 1.0
+
         if self._selected_icon:
             icon = QIcon.fromTheme(self._selected_icon)
             if not icon.isNull():
-                self._preview_label.setPixmap(icon.pixmap(40, 40))
+                pixmap = icon.pixmap(int(40 * dpr), int(40 * dpr))
+                pixmap.setDevicePixelRatio(dpr)
+                self._preview_label.setPixmap(pixmap)
                 self._icon_name_label.setText(self._selected_icon)
                 return
 
         if self._selected_icon_path:
             pixmap = QPixmap(self._selected_icon_path)
             if not pixmap.isNull():
-                self._preview_label.setPixmap(pixmap.scaled(40, 40, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                scaled = pixmap.scaled(int(40 * dpr), int(40 * dpr), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                scaled.setDevicePixelRatio(dpr)
+                self._preview_label.setPixmap(scaled)
                 self._icon_name_label.setText("自定义图标")
                 return
 

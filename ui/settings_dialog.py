@@ -4,7 +4,7 @@
 from PyQt5.QtWidgets import (
     QDialog, QHBoxLayout, QVBoxLayout, QListWidget, QListWidgetItem,
     QStackedWidget, QLabel, QSlider, QPushButton, QWidget,
-    QFrame, QScrollArea, QComboBox, QMessageBox, QListView,
+    QFrame, QScrollArea, QComboBox, QListView,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QFont
@@ -15,6 +15,7 @@ from utils.system_info import SystemInfo
 from plugins.plugin_manager import PluginManager
 from widgets.plugin_list_widget import PluginListWidget, DropForwardScrollArea
 from ui.plugin_edit_dialog import PluginEditDialog
+from ui.confirm_dialog import ConfirmDialog
 
 
 def get_global_style(accent_color: str) -> str:
@@ -502,15 +503,13 @@ class ExtensionsPage(QWidget):
         if plugin_config is None:
             return
 
-        reply = QMessageBox.question(
-            self,
+        dialog = ConfirmDialog(
             "确认删除",
             f"确定要删除扩展 \"{plugin_config.name}\" 吗？\n此操作不可撤销。",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            self
         )
 
-        if reply == QMessageBox.Yes:
+        if dialog.exec_() == QDialog.Accepted:
             pm.delete_plugin(plugin_id)
             self._refresh_list()
             self.dialog.settings_changed.emit('pie_panel')
