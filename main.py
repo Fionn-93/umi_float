@@ -131,6 +131,14 @@ class Application:
         print("正在退出...")
         self.tray_icon.hide()
         self.app.quit()
+
+    def _restart(self):
+        """重启应用"""
+        import os
+        import sys
+        print("正在重启...")
+        self.tray_icon.hide()
+        os.execv(sys.executable, [sys.executable] + sys.argv)
     
     def _toggle_panel(self):
         """切换抽屉面板显示"""
@@ -173,6 +181,9 @@ class Application:
         settings_action.triggered.connect(self._show_settings)
         menu.addAction(settings_action)
         menu.addSeparator()
+        restart_action = QAction("重启", self.app)
+        restart_action.triggered.connect(self._restart)
+        menu.addAction(restart_action)
         quit_action = QAction("退出", self.app)
         quit_action.triggered.connect(self._quit)
         menu.addAction(quit_action)

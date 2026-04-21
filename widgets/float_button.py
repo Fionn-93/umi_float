@@ -5,14 +5,14 @@
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import Qt, QTimer, QTime, QRect
 from PyQt5.QtGui import (
-    QColor, QFont, QPainter, QPen, QIcon, QPixmap, QConicalGradient, QBrush
+    QColor, QFont, QPainter, QPen, QIcon, QPixmap
 )
 
 from core.config import get_config
 from utils.theme_colors import theme_from_key, DEFAULT_THEME
 from utils.memory_info import get_memory_usage
 from utils.network_info import NetworkMonitor
-from utils.weather_info import fetch_weather, get_cached_weather
+from utils.weather_info import fetch_weather, get_cached_weather, get_icon_path
 
 
 class FloatButton(QLabel):
@@ -108,13 +108,13 @@ class FloatButton(QLabel):
     def _paint_clock_mode(self):
         size = self.size
         radius = size // 2 - 1
-        ring_width = max(2, int(size * 0.05))
-        ring_radius = radius - ring_width // 2
+        ring_width = max(3, int(size * 0.08))
+        drawing_radius = radius - ring_width // 2
         ring_rect = QRect(
             1 + ring_width // 2,
             1 + ring_width // 2,
-            ring_radius * 2,
-            ring_radius * 2,
+            drawing_radius * 2,
+            drawing_radius * 2,
         )
 
         painter = QPainter(self)
@@ -128,9 +128,8 @@ class FloatButton(QLabel):
         painter.drawEllipse(1, 1, radius * 2, radius * 2)
 
         track_color = QColor(self.THEME_TEXT)
-        track_color.setAlpha(30)
-        track_pen = QPen(track_color, ring_width, Qt.SolidLine, Qt.RoundCap)
-        painter.setPen(track_pen)
+        track_color.setAlpha(40)
+        painter.setPen(QPen(track_color, ring_width, Qt.SolidLine, Qt.RoundCap))
         painter.setBrush(Qt.NoBrush)
         painter.drawArc(ring_rect, 0, 360 * 16)
 
@@ -138,24 +137,31 @@ class FloatButton(QLabel):
         seconds = now.second() + now.msec() / 1000.0
         span_angle = int(seconds / 60.0 * 360 * 16)
 
-        gradient = QConicalGradient(ring_rect.center(), 270)
         progress_color = QColor(self.THEME_TEXT)
-        gradient.setColorAt(0.0, QColor(progress_color.red(), progress_color.green(), progress_color.blue(), 200))
-        gradient.setColorAt(0.8, QColor(progress_color.red(), progress_color.green(), progress_color.blue(), 120))
-        gradient.setColorAt(1.0, QColor(progress_color.red(), progress_color.green(), progress_color.blue(), 0))
-
-        progress_pen = QPen(QBrush(gradient), ring_width, Qt.SolidLine, Qt.RoundCap)
-        painter.setPen(progress_pen)
-        painter.setBrush(Qt.NoBrush)
+        progress_color.setAlpha(200)
+        painter.setPen(QPen(progress_color, ring_width, Qt.SolidLine, Qt.RoundCap))
         painter.drawArc(ring_rect, 90 * 16, -span_angle)
 
-        current_time = now.toString("HH:mm")
-        font_size = max(8, int(size * 0.27))
-        font = QFont("", font_size, QFont.Bold)
-        font.setLetterSpacing(QFont.AbsoluteSpacing, 2)
-        painter.setFont(font)
+        hh = now.toString("HH")
+        mm = now.toString("mm")
+
+        font_hh = QFont("", max(8, int(size * 0.25)), QFont.Bold)
+        painter.setFont(font_hh)
         painter.setPen(QPen(self.THEME_TEXT))
-        painter.drawText(self.rect(), Qt.AlignCenter, current_time)
+        fm_hh = painter.fontMetrics()
+
+        center_y = size // 2
+        hh_height = fm_hh.height()
+        hh_rect = QRect(0, center_y - hh_height + 4, size, hh_height)
+        painter.drawText(hh_rect, Qt.AlignCenter, hh)
+
+        font_mm = QFont("", max(6, int(size * 0.18)), QFont.Normal)
+        painter.setFont(font_mm)
+        color_mm = QColor(self.THEME_TEXT)
+        color_mm.setAlpha(160)
+        painter.setPen(QPen(color_mm))
+        mm_rect = QRect(0, center_y - 2, size, hh_height)
+        painter.drawText(mm_rect, Qt.AlignCenter, mm)
 
         border_pen = QPen(self.THEME_BORDER, 2)
         painter.setPen(border_pen)
@@ -192,32 +198,57 @@ class FloatButton(QLabel):
         painter.setBrush(Qt.NoBrush)
         painter.drawArc(ring_rect, 0, 360 * 16)
 
-        progress_color = QColor(self.THEME_TEXT)
-        progress_color.setAlpha(220)
-        progress_pen = QPen(progress_color, ring_width, Qt.SolidLine, Qt.RoundCap)
-        painter.setPen(progress_pen)
         span_angle = int(self._mem_percent / 100.0 * 360 * 16)
+
+        if self._mem_percent < 40:
+            perf_color = QColor(78, 205, 196)
+        elif self._mem_percent < 80:
+            perf_color = QColor(255, 200, 50)
+        else:
+            perf_color = QColor(255, 107, 107)
+
+        painter.setPen(QPen(perf_color, ring_width, Qt.SolidLine, Qt.RoundCap))
         painter.drawArc(ring_rect, 90 * 16, -span_angle)
 
-        percent_font_size = max(8, int(size * 0.24))
-        percent_font = QFont("", percent_font_size, QFont.Bold)
-        painter.setFont(percent_font)
-        painter.setPen(QPen(self.THEME_TEXT))
-        percent_text = f"{int(self._mem_percent)}%"
-        fm = painter.fontMetrics()
-        ph = fm.height()
-        py = size // 2 - ph // 2 + fm.ascent()
-        px = (size - fm.horizontalAdvance(percent_text)) // 2
-        painter.drawText(px, py, percent_text)
-
-        net_font_size = max(5, int(size * 0.11))
-        net_font = QFont("", net_font_size)
-        painter.setFont(net_font)
+        num_text = str(int(self._mem_percent))
+        sym_text = "%"
         net_text = f"↓{self._net_down_text}"
-        fm2 = painter.fontMetrics()
-        nx = (size - fm2.horizontalAdvance(net_text)) // 2
-        ny = py + fm2.ascent() + 6
-        painter.drawText(nx, ny, net_text)
+
+        font_num = QFont("", max(8, int(size * 0.28)), QFont.Bold)
+        font_sym = QFont("", max(5, int(size * 0.13)), QFont.Bold)
+        font_net = QFont("monospace", max(5, int(size * 0.11)), QFont.Normal)
+
+        painter.setFont(font_num)
+        fm_num = painter.fontMetrics()
+        num_w = fm_num.horizontalAdvance(num_text)
+
+        painter.setFont(font_sym)
+        fm_sym = painter.fontMetrics()
+        sym_w = fm_sym.horizontalAdvance(sym_text)
+
+        painter.setFont(font_net)
+        fm_net = painter.fontMetrics()
+        net_w = fm_net.horizontalAdvance(net_text)
+
+        total_h = fm_num.height() + fm_net.height() + 4
+        start_y = (size - total_h) // 2 + 4
+
+        row1_x = (size - (num_w + sym_w)) // 2
+
+        painter.setFont(font_num)
+        painter.setPen(QPen(self.THEME_TEXT))
+        painter.drawText(row1_x, start_y + fm_num.ascent(), num_text)
+
+        painter.setFont(font_sym)
+        painter.setPen(QPen(self.THEME_TEXT))
+        painter.drawText(row1_x + num_w + 1, start_y + fm_num.ascent() - (fm_num.ascent() // 7), sym_text)
+
+        net_x = (size - net_w) // 2
+        painter.setFont(font_net)
+        sec_color = QColor(self.THEME_TEXT)
+        sec_color.setAlpha(160)
+        painter.setPen(QPen(sec_color))
+        painter.drawText(net_x, start_y + fm_num.height() + 0 + fm_net.ascent(), net_text)
 
         border_pen = QPen(self.THEME_BORDER, 2)
         painter.setPen(border_pen)
@@ -227,12 +258,13 @@ class FloatButton(QLabel):
         painter.end()
 
     def _paint_weather_mode(self):
-        opacity = int(get_config().get().get('opacity', 0.9) * 255)
-        radius = self.size // 2 - 1
+        size = self.size
+        radius = size // 2 - 1
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
 
+        opacity = int(get_config().get().get('opacity', 0.9) * 255)
         bg = QColor(self.THEME_BG)
         bg.setAlpha(opacity)
         painter.setPen(Qt.NoPen)
@@ -242,48 +274,75 @@ class FloatButton(QLabel):
         data = self._weather_data
 
         if data is None:
-            font_size = max(8, self.size // 4)
-            font = QFont("", font_size, QFont.Bold)
+            font = QFont("", max(8, int(size * 0.15)), QFont.Bold)
             painter.setFont(font)
             painter.setPen(QPen(self.THEME_TEXT))
-            painter.drawText(self.rect(), Qt.AlignCenter, "--°")
+            painter.drawText(self.rect(), Qt.AlignCenter, "--°C")
         else:
-            icon_name = data.get('icon', 'weather-clear')
-            icon = QIcon.fromTheme(icon_name)
-            temp = data.get('temp', '--')
+            icon_code = data.get('icon_code', '100')
+            icon_path = get_icon_path(icon_code)
+            icon = QIcon(icon_path)
+            temp = str(data.get('temp', '--'))
+            desc = data.get('text', '')
 
-            icon_size = max(16, self.size // 2)
-            if icon.isNull():
-                text_icon = data.get('text', '')
-                font_size = max(10, self.size // 4)
-                font = QFont("", font_size, QFont.Bold)
-                painter.setFont(font)
-                painter.setPen(QPen(self.THEME_TEXT))
-                text_rect = QRect(0, 0, self.size, self.size * 2 // 3)
-                painter.drawText(text_rect, Qt.AlignCenter, text_icon)
-            else:
+            if not icon.isNull():
                 from PyQt5.QtWidgets import QApplication
                 app = QApplication.instance()
                 dpr = app.devicePixelRatio() if app else 1.0
-                pixmap = icon.pixmap(int(icon_size * dpr), int(icon_size * dpr))
-                pixmap.setDevicePixelRatio(dpr)
-                ix = (self.size - icon_size) // 2
-                iy = max(2, self.size // 2 - icon_size // 2 - 4)
-                painter.drawPixmap(ix, iy, icon_size, icon_size, pixmap)
+                icon_size = int(size * 0.50)
 
-            temp_font_size = max(9, self.size // 5)
-            temp_font = QFont("", temp_font_size, QFont.Bold)
-            painter.setFont(temp_font)
+                src = icon.pixmap(int(icon_size * dpr), int(icon_size * dpr))
+                src.setDevicePixelRatio(dpr)
+                colored = QPixmap(src.size())
+                colored.setDevicePixelRatio(dpr)
+                colored.fill(Qt.transparent)
+                p = QPainter(colored)
+                p.drawPixmap(0, 0, src)
+                p.setCompositionMode(QPainter.CompositionMode_SourceIn)
+                p.fillRect(colored.rect(), self.THEME_TEXT)
+                p.end()
+
+                painter.save()
+                painter.setOpacity(0.22)
+                painter.drawPixmap((size - icon_size) // 2, (size - icon_size) // 2, icon_size, icon_size, colored)
+                painter.restore()
+
+            font_temp = QFont("", max(8, int(size * 0.28)), QFont.Bold)
+            font_unit = QFont("", max(5, int(size * 0.13)), QFont.Bold)
+            font_desc = QFont("", max(5, int(size * 0.11)), QFont.Normal)
+
+            painter.setFont(font_temp)
+            fm_temp = painter.fontMetrics()
+            temp_w = fm_temp.horizontalAdvance(temp)
+
+            painter.setFont(font_unit)
+            fm_unit = painter.fontMetrics()
+            unit_w = fm_unit.horizontalAdvance("°C")
+
+            painter.setFont(font_desc)
+            fm_desc = painter.fontMetrics()
+
+            total_h = fm_temp.height() + fm_desc.height() + 4
+            start_y = (size - total_h) // 2 + 4
+
+            row1_x = (size - (temp_w + unit_w)) // 2
+
+            painter.setFont(font_temp)
             painter.setPen(QPen(self.THEME_TEXT))
-            temp_text = f"{temp}°"
-            fm = painter.fontMetrics()
-            tw = fm.horizontalAdvance(temp_text)
-            tx = (self.size - tw) // 2
-            ty = self.size - max(4, self.size // 8)
-            painter.drawText(tx, ty, temp_text)
+            painter.drawText(row1_x, start_y + fm_temp.ascent(), temp)
 
-        pen = QPen(self.THEME_BORDER, 2)
-        painter.setPen(pen)
+            painter.setFont(font_unit)
+            painter.drawText(row1_x + temp_w + 1, start_y + fm_temp.ascent() - (fm_temp.ascent() // 7), "°C")
+
+            desc_x = (size - fm_desc.horizontalAdvance(desc)) // 2
+            painter.setFont(font_desc)
+            color_desc = QColor(self.THEME_TEXT)
+            color_desc.setAlpha(160)
+            painter.setPen(QPen(color_desc))
+            painter.drawText(desc_x, start_y + fm_temp.height() + 0 + fm_desc.ascent(), desc)
+
+        border_pen = QPen(self.THEME_BORDER, 2)
+        painter.setPen(border_pen)
         painter.setBrush(Qt.NoBrush)
         painter.drawEllipse(1, 1, radius * 2, radius * 2)
 

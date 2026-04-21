@@ -7,73 +7,77 @@ import json
 import gzip
 import urllib.request
 import urllib.error
+from pathlib import Path
 
 
 _CACHE = {
     'data': None,
     'timestamp': 0,
-    'ttl': 30 * 60,  # 30 分钟缓存
+    'ttl': 30 * 60,
 }
+
+WEATHER_ICONS_DIR = Path(__file__).resolve().parent.parent / "assets" / "Weather"
 
 QWEATHER_ICON_MAP = {
-    "100": "weather-clear",
-    "101": "weather-clear-night",
-    "102": "weather-few-clouds",
-    "103": "weather-few-clouds-night",
-    "104": "weather-overcast",
-    "150": "weather-clear",
-    "151": "weather-clear-night",
-    "300": "weather-showers",
-    "301": "weather-showers",
-    "302": "weather-storm",
-    "303": "weather-storm",
-    "304": "weather-storm",
-    "305": "weather-showers",
-    "306": "weather-showers",
-    "307": "weather-showers",
-    "308": "weather-storm",
-    "309": "weather-showers",
-    "310": "weather-storm",
-    "311": "weather-showers",
-    "312": "weather-showers",
-    "313": "weather-freezing-rain",
-    "314": "weather-freezing-rain",
-    "315": "weather-freezing-rain",
-    "399": "weather-showers",
-    "400": "weather-snow",
-    "401": "weather-snow",
-    "402": "weather-snow",
-    "403": "weather-snow",
-    "404": "weather-snow-rain",
-    "405": "weather-snow-rain",
-    "406": "weather-snow-rain",
-    "407": "weather-snow",
-    "408": "weather-snow",
-    "409": "weather-snow",
-    "499": "weather-snow",
-    "500": "weather-fog",
-    "501": "weather-fog",
-    "502": "weather-fog",
-    "503": "weather-fog",
-    "504": "weather-fog",
-    "507": "weather-fog",
-    "508": "weather-fog",
-    "509": "weather-fog",
-    "510": "weather-fog",
-    "511": "weather-fog",
-    "512": "weather-fog",
-    "513": "weather-fog",
-    "514": "weather-fog",
-    "515": "weather-fog",
-    "900": "weather-clear",
-    "901": "weather-clear",
-    "999": "weather-clear",
+    "100": "sun-fill",
+    "101": "moon-clear-fill",
+    "102": "sun-cloudy-fill",
+    "103": "moon-cloudy-fill",
+    "104": "cloudy-fill",
+    "150": "sun-fill",
+    "151": "moon-clear-fill",
+    "300": "rainy-fill",
+    "301": "heavy-showers-fill",
+    "302": "thunderstorms-fill",
+    "303": "thunderstorms-fill",
+    "304": "thunderstorms-fill",
+    "305": "drizzle-fill",
+    "306": "rainy-fill",
+    "307": "heavy-showers-fill",
+    "308": "thunderstorms-fill",
+    "309": "drizzle-fill",
+    "310": "thunderstorms-fill",
+    "311": "heavy-showers-fill",
+    "312": "heavy-showers-fill",
+    "313": "hail-fill",
+    "314": "hail-fill",
+    "315": "hail-fill",
+    "399": "rainy-fill",
+    "400": "snowy-fill",
+    "401": "snowy-fill",
+    "402": "snowflake-fill",
+    "403": "snowflake-fill",
+    "404": "drizzle-fill",
+    "405": "drizzle-fill",
+    "406": "drizzle-fill",
+    "407": "snowy-fill",
+    "408": "snowy-fill",
+    "409": "snowflake-fill",
+    "499": "snowy-fill",
+    "500": "mist-fill",
+    "501": "mist-fill",
+    "502": "foggy-fill",
+    "503": "foggy-fill",
+    "504": "foggy-fill",
+    "507": "haze-fill",
+    "508": "haze-fill",
+    "509": "foggy-fill",
+    "510": "foggy-fill",
+    "511": "foggy-fill",
+    "512": "foggy-fill",
+    "513": "foggy-fill",
+    "514": "foggy-fill",
+    "515": "foggy-fill",
+    "900": "sun-fill",
+    "901": "sun-fill",
+    "999": "sun-fill",
 }
 
 
-def get_icon_name(icon_code):
-    """将和风天气 icon code 映射为系统图标名"""
-    return QWEATHER_ICON_MAP.get(str(icon_code), "weather-clear")
+def get_icon_path(icon_code):
+    """将和风天气 icon code 映射为本地 SVG 图标路径"""
+    name = QWEATHER_ICON_MAP.get(str(icon_code), "sun-fill")
+    return str(WEATHER_ICONS_DIR / f"{name}.svg")
 
 
 def clear_weather_cache():
@@ -133,7 +137,7 @@ def fetch_weather(api_key, location, api_host=None):
         temp = now_data.get('temp', '--')
 
         result = {
-            'icon': get_icon_name(icon_code),
+            'icon': get_icon_path(icon_code),
             'icon_code': icon_code,
             'text': text,
             'temp': temp,
