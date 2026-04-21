@@ -8,10 +8,10 @@ Umi-Float 是一个常驻桌面的轻量化入口，通过"悬浮球 + 抽屉式
 
 ### 核心功能
 - **悬浮球**：圆形悬浮球，支持拖动、边缘吸附、透明度调节、主题色自定义
-- **显示模式**：支持时钟、内存水位、天气三种显示模式
+- **显示模式**：支持时钟、性能监控、天气三种显示模式
 - **抽屉式面板**：点击展开的环形面板，支持插件快捷访问
 - **系统托盘**：集成系统托盘，支持显示/隐藏、偏好设置、退出
-- **设置界面**：macOS 风格的偏好设置界面，支持实时预览
+- **设置界面**：现代圆角卡片风格偏好设置，无边框窗口，支持实时预览
 
 ### 扩展管理
 - **拖拽排序**：支持拖拽调整扩展顺序
@@ -128,17 +128,17 @@ PYTHONPATH=/path/to/umi_float:$PYTHONPATH python3 main.py
 {
   "opacity": 0.9,
   "float_ball_size": 56,
-  "theme_color": "#6495ED",
+  "theme": "deepin",
   "display_mode": "clock",
   "pie_button_size": 56,
   "pie_spacing": 10,
+  "pie_expand_mode": "click",
   "auto_start": false,
   "show_on_fullscreen": false,
+  "weather_api_host": "je693837aw.re.qweatherapi.com",
   "weather_api_key": "",
   "weather_location": "101010100",
   "position": {"x": 100, "y": 100},
-  "enabled_plugins": ["calculator", "settings"],
-  "disabled_plugins": ["screenshot"],
   "plugin_overrides": {}
 }
 ```
@@ -149,15 +149,16 @@ PYTHONPATH=/path/to/umi_float:$PYTHONPATH python3 main.py
 |--------|------|-----------|
 | `opacity` | 悬浮球透明度 | 0.1-1.0 |
 | `float_ball_size` | 悬浮球大小 | 32-128 |
-| `theme_color` | 主题色 | 十六进制颜色 |
-| `display_mode` | 显示模式 | clock/memory/weather |
+| `theme` | 主题预设 | deepin/macos/github/... |
+| `display_mode` | 显示模式 | clock/performance/weather |
 | `pie_button_size` | 扩展图标大小 | 32-100 |
 | `pie_spacing` | 面板间距 | 0-30 |
+| `pie_expand_mode` | 展开方式 | click/hover |
 | `auto_start` | 开机自启 | boolean |
+| `weather_api_host` | 和风天气 API 地址 | string |
 | `weather_api_key` | 和风天气 API Key | string |
 | `weather_location` | 天气查询位置 | 城市ID |
-| `enabled_plugins` | 已启用扩展列表 | string[] |
-| `disabled_plugins` | 已禁用扩展列表 | string[] |
+| `plugin_overrides` | 扩展覆盖配置 | object |
 
 ## 开发计划
 

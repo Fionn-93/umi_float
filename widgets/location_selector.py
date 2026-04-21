@@ -7,6 +7,7 @@ from pathlib import Path
 
 from PyQt5.QtWidgets import QComboBox, QListView, QWidget, QHBoxLayout
 from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtGui import QPalette, QColor
 
 _DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "qweather_china.json"
 _data_cache = None
@@ -42,9 +43,15 @@ class LocationSelector(QWidget):
             view.setStyleSheet("color: #333333; background-color: #ffffff;")
             combo.setView(view)
             combo.setMinimumWidth(80)
-            layout.addWidget(combo, 4)
+            combo.setMaximumWidth(100)
+            pal = combo.palette()
+            pal.setColor(QPalette.Text, QColor("#1f2937"))
+            pal.setColor(QPalette.ButtonText, QColor("#1f2937"))
+            pal.setColor(QPalette.WindowText, QColor("#1f2937"))
+            combo.setPalette(pal)
+            layout.addWidget(combo, 3)
 
-        layout.addStretch(3)
+        layout.addStretch(2)
 
         self.province_combo.currentIndexChanged.connect(self._on_province_changed)
         self.city_combo.currentIndexChanged.connect(self._on_city_changed)

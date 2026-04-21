@@ -1,14 +1,15 @@
 """
-设置对话框 - 参考 FeelUOwn 风格
+设置对话框 - 现代圆角卡片风格
 """
 import threading
 from PyQt5.QtWidgets import (
     QDialog, QHBoxLayout, QVBoxLayout, QListWidget, QListWidgetItem,
     QStackedWidget, QLabel, QSlider, QPushButton, QWidget,
     QFrame, QScrollArea, QComboBox, QListView, QLineEdit,
+    QGraphicsOpacityEffect, QSizePolicy,
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QSize
-from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPropertyAnimation
+from PyQt5.QtGui import QFont, QPalette, QColor
 
 from core.config import get_config
 from utils.theme_colors import get_all_themes, DEFAULT_THEME
@@ -21,139 +22,58 @@ from ui.plugin_edit_dialog import PluginEditDialog
 from ui.confirm_dialog import ConfirmDialog
 
 
-def get_global_style(accent_color: str) -> str:
-    """获取全局样式表"""
-    return f"""
-/* 侧边栏优化 */
-#navList {{
-    background-color: #f7f7f7;
-    border: none;
-    border-right: 1px solid #eeeeee;
-    outline: none;
-    font-size: 13px;
-    padding: 8px 0px;
-}}
-#navList::item {{
-    height: 40px;
-    padding-left: 15px;
-    border-radius: 8px;
-    margin: 4px 10px;
-    color: #666666;
-}}
-#navList::item:selected {{
-    background-color: {accent_color};
-    color: #ffffff;
-    font-weight: 600;
-}}
-#navList::item:hover:!selected {{
-    background-color: #ececec;
-}}
-
-/* 下拉框优化 */
-QComboBox {{
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    padding: 4px 10px;
-    min-width: 120px;
-    background: #ffffff;
-    color: #333333;
-    font-size: 13px;
-}}
-QComboBox:hover {{
-    border-color: {accent_color};
-}}
-QComboBox::drop-down {{
-    border: none;
-}}
-QComboBox QAbstractItemView {{
-    background-color: #ffffff;
-    border: 1px solid #e0e0e0;
-    selection-background-color: {accent_color}22;
-    outline: none;
-}}
-QComboBox QAbstractItemView::item {{
-    color: #333333;
-    background-color: #ffffff;
-    height: 32px;
-    padding-left: 10px;
-}}
-QComboBox QAbstractItemView::item:selected {{
-    background-color: {accent_color}22;
-    color: {accent_color};
-}}
-
-/* 输入框优化 */
-QLineEdit {{
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    padding: 6px;
-    font-size: 13px;
-    color: #333333;
-    background: #ffffff;
-    min-width: 200px;
-}}
-QLineEdit:focus {{
-    border-color: {accent_color};
-}}
-QLineEdit::placeholder {{
-    color: #aaaaaa;
-}}
-
-/* 滑块优化 */
-QSlider::groove:horizontal {{
-    height: 4px;
-    background: #e0e0e0;
-    border-radius: 2px;
-}}
-QSlider::handle:horizontal {{
-    width: 16px;
-    height: 16px;
-    margin: -6px 0;
-    background: #ffffff;
-    border: 1px solid #dcdcdc;
-    border-radius: 8px;
-}}
-QSlider::handle:horizontal:hover {{
-    border-color: {accent_color};
-}}
-QSlider::sub-page:horizontal {{
-    background: {accent_color};
-    border-radius: 2px;
-}}
-"""
-
-
-class MidHeader(QLabel):
-    """分组标题 - 参考 FeelUOwn"""
-
-    def __init__(self, text, parent=None):
-        super().__init__(text, parent)
-        font = self.font()
-        font.setPixelSize(12)
-        font.setWeight(600)
-        self.setFont(font)
-        self.setStyleSheet("color: #8e8e93; padding: 20px 0 8px 4px; background: transparent;")
-
-
-class _SettingRow(QWidget):
-    """设置行：左侧标签 + 右侧控件，带 Hover 效果"""
-
-    def __init__(self, label_text, control_widget, parent=None):
+class TitleBar(QFrame):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumHeight(48)
-        self.setCursor(Qt.PointingHandCursor)
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(0)
+        self.setFixedHeight(54)
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(18, 8, 18, 8)
+        title = QLabel("设置中心")
+        title.setObjectName("titleBarLabel")
+        lay.addWidget(title)
+        lay.addStretch()
+        close_btn = QPushButton("\u2715")
+        close_btn.setObjectName("closeBtn")
+        close_btn.clicked.connect(parent.close)
+        lay.addWidget(close_btn)
 
-        label = QLabel(label_text)
-        label.setStyleSheet("color: #333333; font-size: 13px; background: transparent;")
-        layout.addWidget(label)
-        layout.addStretch()
-        layout.addWidget(control_widget)
+
+class NavList(QListWidget):
+    def __init__(self):
+        super().__init__()
+        self.setFixedWidth(200)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+
+class SettingRow(QFrame):
+    def __init__(self, title, widget, desc=""):
+        super().__init__()
+        self.setObjectName("row")
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(18, 14, 18, 14)
+
+        left_container = QFrame()
+        left_container.setFixedWidth(240)
+        left_lay = QVBoxLayout(left_container)
+        left_lay.setContentsMargins(0, 0, 0, 0)
+        left_lay.setSpacing(2)
+
+        t = QLabel(title)
+        t.setObjectName("rowTitle")
+        left_lay.addWidget(t)
+        if desc:
+            d = QLabel(desc)
+            d.setWordWrap(True)
+            d.setObjectName("rowDesc")
+            left_lay.addWidget(d)
+
+        lay.addWidget(left_container, 0)
+        lay.addSpacing(16)
+        widget.setMinimumWidth(200)
+        lay.addWidget(widget, 1)
 
     def enterEvent(self, event):
-        self.setStyleSheet("background-color: #fafafa;")
+        self.setStyleSheet("#row{background:rgba(0,0,0,0.03);}")
         super().enterEvent(event)
 
     def leaveEvent(self, event):
@@ -161,20 +81,35 @@ class _SettingRow(QWidget):
         super().leaveEvent(event)
 
 
-class _LabeledSlider(QWidget):
+class Card(QFrame):
+    def __init__(self, title):
+        super().__init__()
+        self.setObjectName("card")
+        self.v = QVBoxLayout(self)
+        self.v.setContentsMargins(16, 16, 16, 16)
+        self.v.setSpacing(2)
+        lab = QLabel(title.upper())
+        lab.setObjectName("sectionTitle")
+        self.v.addWidget(lab)
+
+    def addRow(self, row):
+        self.v.addWidget(row)
+
+
+class LabeledSlider(QWidget):
     value_changed = pyqtSignal(int)
 
-    def __init__(self, min_val, max_val, default, suffix="", scale=1.0, accent_color="#0078d4", parent=None):
+    def __init__(self, min_val, max_val, default, suffix="", scale=1.0, parent=None):
         super().__init__(parent)
         self._scale = scale
         self._suffix = suffix
-        self._accent_color = accent_color
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
 
         self.slider = QSlider(Qt.Horizontal)
+        self.slider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.slider.setRange(min_val, max_val)
         self.slider.blockSignals(True)
         self.slider.setValue(default)
@@ -186,9 +121,9 @@ class _LabeledSlider(QWidget):
         else:
             display_text = f"{default * scale:.2f}{suffix}"
         self.value_label = QLabel(display_text)
-        self.value_label.setFixedWidth(56)
+        self.value_label.setFixedWidth(48)
         self.value_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.value_label.setStyleSheet("color: #333333; font-size: 12px; font-family: monospace; background: transparent;")
+        self.value_label.setStyleSheet("color: #6b7280; font-size: 12px; background: transparent;")
         layout.addWidget(self.value_label)
 
         self.slider.valueChanged.connect(self._on_value_changed)
@@ -201,6 +136,21 @@ class _LabeledSlider(QWidget):
         self.value_changed.emit(val)
 
 
+class Page(QWidget):
+    def __init__(self, title):
+        super().__init__()
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(28, 24, 28, 24)
+        header = QLabel(title)
+        header.setObjectName("pageTitle")
+        root.addWidget(header)
+        self.body = QVBoxLayout()
+        self.body.setSpacing(18)
+        root.addLayout(self.body)
+        root.addStretch()
+
+
 class SettingsDialog(QDialog):
     settings_changed = pyqtSignal(str)
     page_changed = pyqtSignal(int)
@@ -211,58 +161,265 @@ class SettingsDialog(QDialog):
         self._drag_pos = None
         self._is_dragging = False
         self._accent_color = SystemInfo.get_accent_color()
+        self._animation = None
+        self.setWindowTitle("设置")
+        self.resize(860, 620)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog | Qt.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)
         self._init_ui()
+        self.applyStyle()
 
     def _init_ui(self):
-        self.setWindowTitle("设置")
-        self.setWindowFlags(Qt.Dialog | Qt.WindowStaysOnTopHint)
-        self.setMinimumSize(640, 440)
-        self.resize(660, 460)
-        self.setStyleSheet(get_global_style(self._accent_color))
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(14, 14, 14, 14)
+        outer.setSpacing(0)
 
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
+        self.shell = QFrame()
+        self.shell.setObjectName("shell")
+        shell_layout = QVBoxLayout(self.shell)
+        shell_layout.setContentsMargins(0, 0, 0, 0)
+        shell_layout.setSpacing(0)
 
-        self.nav_list = QListWidget()
-        self.nav_list.setObjectName("navList")
-        self.nav_list.setFixedWidth(180)
+        self.bar = TitleBar(self)
+        shell_layout.addWidget(self.bar)
+
+        content = QHBoxLayout()
+        content.setContentsMargins(12, 12, 12, 12)
+        content.setSpacing(12)
+
+        self.nav_list = NavList()
+        nav_items = ["个性化", "天气", "扩展"]
+        for name in nav_items:
+            item = QListWidgetItem(name)
+            item.setSizeHint(QSize(0, 44))
+            self.nav_list.addItem(item)
+        self.nav_list.setCurrentRow(0)
         self.nav_list.currentRowChanged.connect(self._switch_page)
 
         self.stack = QStackedWidget()
-        self.stack.setObjectName("settingsStack")
 
         self.personalize_page = PersonalizePage(self)
         self.weather_page = WeatherPage(self)
         self.extensions_page = ExtensionsPage(self)
 
-        nav_items = [
-            "个性化",
-            "天气",
-            "扩展",
-        ]
-        for name in nav_items:
-            item = QListWidgetItem(name)
-            item.setSizeHint(QSize(0, 40))
-            self.nav_list.addItem(item)
-
-        self.nav_list.setCurrentRow(0)
-
         self.stack.addWidget(self.personalize_page)
         self.stack.addWidget(self.weather_page)
         self.stack.addWidget(self.extensions_page)
 
-        body = QHBoxLayout()
-        body.setContentsMargins(0, 0, 0, 0)
-        body.setSpacing(0)
-        body.addWidget(self.nav_list)
-        body.addWidget(self.stack, 1)
-
-        main_layout.addLayout(body)
+        content.addWidget(self.nav_list)
+        content.addWidget(self.stack, 1)
+        shell_layout.addLayout(content)
+        outer.addWidget(self.shell)
 
     def _switch_page(self, row):
+        if row < 0 or row >= self.stack.count():
+            return
         self.stack.setCurrentIndex(row)
         self.page_changed.emit(row)
+        widget = self.stack.currentWidget()
+        effect = QGraphicsOpacityEffect(widget)
+        widget.setGraphicsEffect(effect)
+        anim = QPropertyAnimation(effect, b"opacity", self)
+        anim.setDuration(180)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+        anim.start()
+        self._animation = anim
+
+    def applyStyle(self):
+        accent = self._accent_color
+        r = int(accent[1:3], 16)
+        g = int(accent[3:5], 16)
+        b = int(accent[5:7], 16)
+        self.setStyleSheet(f"""
+        #shell {{
+            background: #f5f6f8;
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+        }}
+        #titleBarLabel {{
+            font-size: 16px;
+            font-weight: 700;
+            color: #111;
+        }}
+        QPushButton#closeBtn {{
+            color: #374151;
+            font-size: 18px;
+            font-weight: bold;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            width: 30px;
+            height: 30px;
+        }}
+        QPushButton#closeBtn:hover {{
+            background-color: #e5e7eb;
+            color: #111827;
+        }}
+        QPushButton#closeBtn:pressed {{
+            background-color: #d1d5db;
+        }}
+        QListWidget {{
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 12px;
+            font-size: 14px;
+            outline: none;
+        }}
+        QListWidget::item {{
+            height: 44px;
+            border-radius: 12px;
+            padding-left: 14px;
+            color: #1f2937;
+        }}
+        QListWidget::item:selected {{
+            background: {accent};
+            color: white;
+            font-weight: 600;
+        }}
+        QListWidget::item:hover:!selected {{
+            background: rgba(0, 0, 0, 0.04);
+        }}
+        #card {{
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+        }}
+        #pageTitle {{
+            font-size: 22px;
+            font-weight: 700;
+            color: #1f2937;
+            padding-bottom: 8px;
+        }}
+        #sectionTitle {{
+            font-size: 11px;
+            font-weight: 700;
+            color: #6b7280;
+            letter-spacing: 1px;
+            padding: 2px 4px 10px 4px;
+        }}
+        #row {{
+            border-radius: 14px;
+        }}
+        #row:hover {{
+            background: rgba(0, 0, 0, 0.03);
+        }}
+        #rowTitle {{
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+        }}
+        #rowDesc {{
+            font-size: 12px;
+            color: #6b7280;
+        }}
+        QLineEdit {{
+            min-width: 240px;
+            height: 38px;
+            border: none;
+            border-radius: 12px;
+            background: #f4f6f8;
+            color: #1f2937;
+            padding: 0 12px;
+        }}
+        QLineEdit::placeholder {{
+            color: #9ca3af;
+        }}
+        QComboBox {{
+            height: 38px;
+            border: none;
+            border-radius: 12px;
+            background: #f4f6f8;
+            color: #1f2937;
+            padding: 0 12px;
+            selection-background-color: transparent;
+        }}
+        QComboBox::drop-down {{
+            border: none;
+        }}
+        QComboBox QAbstractItemView {{
+            background-color: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            selection-background-color: rgba({r}, {g}, {b}, 0.13);
+            outline: none;
+            padding: 4px;
+        }}
+        QComboBox QAbstractItemView::item {{
+            color: #1f2937;
+            height: 32px;
+            padding-left: 10px;
+            border-radius: 8px;
+        }}
+        QComboBox QAbstractItemView::item:selected {{
+            background-color: rgba({r}, {g}, {b}, 0.13);
+            color: {accent};
+        }}
+        QSlider::groove:horizontal {{
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+        }}
+        QSlider::sub-page:horizontal {{
+            background: {accent};
+            border-radius: 3px;
+        }}
+        QSlider::handle:horizontal {{
+            width: 18px;
+            height: 18px;
+            margin: -6px 0;
+            border-radius: 9px;
+            background: white;
+            border: 2px solid {accent};
+        }}
+        QPushButton#actionBtn {{
+            height: 38px;
+            padding: 0 18px;
+            border: none;
+            border-radius: 12px;
+            background-color: {accent};
+            color: white;
+            font-weight: 600;
+        }}
+        QPushButton#actionBtn:hover {{
+            background-color: rgba({r}, {g}, {b}, 0.8);
+        }}
+        QPushButton#actionBtn:pressed {{
+            background-color: rgba({r}, {g}, {b}, 0.6);
+        }}
+        QPushButton {{
+            height: 38px;
+            padding: 0 18px;
+            border: none;
+            border-radius: 12px;
+            background: {accent};
+            color: white;
+            font-weight: 600;
+        }}
+        QPushButton:hover {{
+            background: rgba({r}, {g}, {b}, 0.8);
+        }}
+        QPushButton:pressed {{
+            background: rgba({r}, {g}, {b}, 0.6);
+        }}
+        QPushButton:disabled {{
+            background: #cccccc;
+            color: #ffffff;
+        }}
+        QScrollBar:vertical {{
+            width: 10px;
+            background: transparent;
+        }}
+        QScrollBar::handle:vertical {{
+            background: rgba(0, 0, 0, 0.14);
+            border-radius: 5px;
+        }}
+        QScrollArea {{
+            background: transparent;
+            border: none;
+        }}
+        """)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -280,268 +437,165 @@ class SettingsDialog(QDialog):
         super().mouseReleaseEvent(event)
 
 
-class PersonalizePage(QWidget):
+def _make_combo(items, current_index=0):
+    combo = QComboBox()
+    combo.addItems(items)
+    combo.setCurrentIndex(current_index)
+    combo.setMinimumWidth(180)
+    view = QListView()
+    view.setStyleSheet("border: none; background: white;")
+    combo.setView(view)
+    return combo
+
+
+class PersonalizePage(Page):
     def __init__(self, parent_dialog):
-        super().__init__()
+        super().__init__("个性化")
         self.dialog = parent_dialog
         self.config = get_config()
-        self._init_ui()
+        self._build_ui()
 
-    def _init_ui(self):
-        scroll = QScrollArea(self)
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background-color: #ffffff; border: none; }")
-
-        content = QWidget()
-        content.setStyleSheet("background-color: #ffffff;")
-        layout = QVBoxLayout(content)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(0)
-
+    def _build_ui(self):
         cfg = self.config.get()
-        accent = self.dialog._accent_color
 
-        page_title = QLabel("个性化")
-        page_title.setFont(QFont("", 16, QFont.Bold))
-        page_title.setStyleSheet("color: #1d1d1f; background: transparent;")
-        layout.addWidget(page_title)
-
-        layout.addWidget(MidHeader("外观"))
-
-        self.theme_combo = QComboBox()
+        c1 = Card("Appearance")
         themes = get_all_themes()
         theme_names = [name for _, name in themes]
-        self.theme_combo.addItems(theme_names)
-        current_theme = cfg.get('theme', DEFAULT_THEME)
-        for i, (key, name) in enumerate(themes):
+        self.theme_combo = _make_combo(theme_names)
+        current_theme = cfg.get("theme", DEFAULT_THEME)
+        for i, (key, _) in enumerate(themes):
             if key == current_theme:
                 self.theme_combo.setCurrentIndex(i)
                 break
         self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
-        theme_view = QListView()
-        theme_view.setStyleSheet(f"color: #333333; background-color: #ffffff;")
-        self.theme_combo.setView(theme_view)
-        layout.addWidget(_SettingRow("主题", self.theme_combo))
+        c1.addRow(SettingRow("主题", self.theme_combo, "选择悬浮球配色方案"))
+        self.body.addWidget(c1)
 
-        layout.addWidget(MidHeader("悬浮球"))
-
-        self.display_mode_combo = QComboBox()
-        self.display_mode_combo.addItems(["时钟", "性能", "天气"])
-        self.display_mode_combo.setCurrentText(
-            {"clock": "时钟", "performance": "性能", "weather": "天气"}.get(
-                cfg.get('display_mode', 'clock'), "时钟"
-            )
+        c2 = Card("Float Ball")
+        self.display_mode_combo = _make_combo(
+            ["时钟", "性能", "天气"],
+            {"clock": 0, "performance": 1, "weather": 2}.get(cfg.get("display_mode", "clock"), 0),
         )
         self.display_mode_combo.currentIndexChanged.connect(self._on_display_mode_changed)
-        display_view = QListView()
-        display_view.setStyleSheet(f"color: #333333; background-color: #ffffff;")
-        self.display_mode_combo.setView(display_view)
-        layout.addWidget(_SettingRow("显示模式", self.display_mode_combo))
+        c2.addRow(SettingRow("显示模式", self.display_mode_combo, "悬浮球显示的内容类型"))
 
-        self.size_slider = _LabeledSlider(32, 128, cfg.get('float_ball_size', 56), suffix=" px", accent_color=accent)
+        self.size_slider = LabeledSlider(32, 128, cfg.get("float_ball_size", 56), suffix=" px")
         self.size_slider.value_changed.connect(self._on_size_changed)
-        layout.addWidget(_SettingRow("大小", self.size_slider))
+        c2.addRow(SettingRow("大小", self.size_slider, "调整悬浮球尺寸"))
+        self.body.addWidget(c2)
 
-        self.opacity_slider = _LabeledSlider(10, 100, int(cfg.get('opacity', 0.9) * 100), suffix="%", scale=0.01, accent_color=accent)
-        self.opacity_slider.value_changed.connect(self._on_opacity_changed)
-        layout.addWidget(_SettingRow("透明度", self.opacity_slider))
-
-        layout.addWidget(MidHeader("扩展面板"))
-
-        self.expand_mode_combo = QComboBox()
-        self.expand_mode_combo.addItems(["鼠标点击", "鼠标悬浮"])
-        expand_mode = cfg.get('pie_expand_mode', 'click')
-        self.expand_mode_combo.setCurrentIndex(0 if expand_mode == 'click' else 1)
+        c3 = Card("Pie Panel")
+        self.expand_mode_combo = _make_combo(
+            ["鼠标点击", "鼠标悬浮"],
+            0 if cfg.get("pie_expand_mode", "click") == "click" else 1,
+        )
         self.expand_mode_combo.currentIndexChanged.connect(self._on_expand_mode_changed)
-        expand_view = QListView()
-        expand_view.setStyleSheet(f"color: #333333; background-color: #ffffff;")
-        self.expand_mode_combo.setView(expand_view)
-        layout.addWidget(_SettingRow("展开方式", self.expand_mode_combo))
+        c3.addRow(SettingRow("展开方式", self.expand_mode_combo, "选择展开面板的触发方式"))
 
-        self.pie_btn_slider = _LabeledSlider(32, 100, cfg.get('pie_button_size', 56), suffix=" px", accent_color=accent)
+        self.pie_btn_slider = LabeledSlider(32, 100, cfg.get("pie_button_size", 56), suffix=" px")
         self.pie_btn_slider.value_changed.connect(self._on_pie_btn_size_changed)
-        layout.addWidget(_SettingRow("图标大小", self.pie_btn_slider))
+        c3.addRow(SettingRow("图标大小", self.pie_btn_slider, "面板中按钮图标的大小"))
 
-        self.spacing_slider = _LabeledSlider(0, 30, cfg.get('pie_spacing', 10), suffix=" px", accent_color=accent)
+        self.spacing_slider = LabeledSlider(0, 30, cfg.get("pie_spacing", 10), suffix=" px")
         self.spacing_slider.value_changed.connect(self._on_spacing_changed)
-        layout.addWidget(_SettingRow("间距", self.spacing_slider))
-
-        layout.addStretch()
-
-        scroll.setWidget(content)
-
-        page_layout = QVBoxLayout(self)
-        page_layout.setContentsMargins(0, 0, 0, 0)
-        page_layout.addWidget(scroll)
+        c3.addRow(SettingRow("间距", self.spacing_slider, "面板按钮之间的间距"))
+        self.body.addWidget(c3)
 
     def _on_theme_changed(self, index):
         themes = get_all_themes()
         if 0 <= index < len(themes):
-            theme_key = themes[index][0]
-            self.config.update(theme=theme_key)
-            self.dialog.settings_changed.emit('float_ball')
+            self.config.update(theme=themes[index][0])
+            self.dialog.settings_changed.emit("float_ball")
 
     def _on_display_mode_changed(self, index):
-        mode_map = {0: 'clock', 1: 'performance', 2: 'weather'}
-        mode = mode_map.get(index, 'clock')
-        self.config.update(display_mode=mode)
-        self.dialog.settings_changed.emit('float_ball')
+        mode_map = {0: "clock", 1: "performance", 2: "weather"}
+        self.config.update(display_mode=mode_map.get(index, "clock"))
+        self.dialog.settings_changed.emit("float_ball")
 
     def _on_size_changed(self, value):
         self.config.update(float_ball_size=value)
-        self.dialog.settings_changed.emit('float_ball')
-
-    def _on_opacity_changed(self, value):
-        self.config.update(opacity=round(value * 0.01, 2))
-        self.dialog.settings_changed.emit('float_ball')
+        self.dialog.settings_changed.emit("float_ball")
 
     def _on_pie_btn_size_changed(self, value):
         self.config.update(pie_button_size=value)
-        self.dialog.settings_changed.emit('pie_panel')
+        self.dialog.settings_changed.emit("pie_panel")
 
     def _on_spacing_changed(self, value):
         self.config.update(pie_spacing=value)
-        self.dialog.settings_changed.emit('pie_panel')
+        self.dialog.settings_changed.emit("pie_panel")
 
     def _on_expand_mode_changed(self, index):
-        mode = 'click' if index == 0 else 'hover'
-        self.config.update(pie_expand_mode=mode)
-        self.dialog.settings_changed.emit('pie_panel')
+        self.config.update(pie_expand_mode="click" if index == 0 else "hover")
+        self.dialog.settings_changed.emit("pie_panel")
 
 
-class WeatherPage(QWidget):
+class WeatherPage(Page):
     test_finished = pyqtSignal(bool, str)
 
     def __init__(self, parent_dialog):
-        super().__init__()
+        super().__init__("天气")
         self.dialog = parent_dialog
         self.config = get_config()
-        self._init_ui()
         self.test_finished.connect(self._on_test_finished)
+        self._build_ui()
 
-    def _init_ui(self):
-        scroll = QScrollArea(self)
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background-color: #ffffff; border: none; }")
-
-        content = QWidget()
-        content.setStyleSheet("background-color: #ffffff;")
-        layout = QVBoxLayout(content)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(0)
-
+    def _build_ui(self):
         cfg = self.config.get()
 
-        page_title = QLabel("天气")
-        page_title.setFont(QFont("", 16, QFont.Bold))
-        page_title.setStyleSheet("color: #1d1d1f; background: transparent;")
-        layout.addWidget(page_title)
-
-        layout.addWidget(MidHeader("API 配置"))
-
+        c1 = Card("Weather Service")
         self.api_host_input = QLineEdit()
         self.api_host_input.setPlaceholderText("输入和风天气 API 地址")
-        self.api_host_input.setText(cfg.get('weather_api_host', ''))
+        self.api_host_input.setText(cfg.get("weather_api_host", ""))
         self.api_host_input.editingFinished.connect(self._on_api_host_changed)
-        layout.addWidget(_SettingRow("API 地址", self.api_host_input))
+        c1.addRow(SettingRow("API 地址", self.api_host_input, "和风天气服务的 API 端点地址"))
 
         self.api_key_input = QLineEdit()
         self.api_key_input.setPlaceholderText("输入和风天气 API Key")
-        self.api_key_input.setText(cfg.get('weather_api_key', ''))
+        self.api_key_input.setText(cfg.get("weather_api_key", ""))
         self.api_key_input.editingFinished.connect(self._on_api_key_changed)
-        layout.addWidget(_SettingRow("API Key", self.api_key_input))
+        c1.addRow(SettingRow("API Key", self.api_key_input, "和风天气服务的访问密钥"))
+        self.body.addWidget(c1)
 
-        layout.addWidget(MidHeader("位置"))
-
+        c2 = Card("Location")
         self.location_selector = LocationSelector(
-            current_id=cfg.get('weather_location', '101010100')
+            current_id=cfg.get("weather_location", "101010100")
         )
         self.location_selector.location_changed.connect(self._on_location_changed)
-        location_row = _SettingRow("地区", self.location_selector)
-        layout.addWidget(location_row)
-
-        accent = self.dialog._accent_color
-        r = int(accent[1:3], 16)
-        g = int(accent[3:5], 16)
-        b = int(accent[5:7], 16)
-
-        test_row = QHBoxLayout()
-        test_row.setContentsMargins(16, 12, 16, 12)
+        c2.addRow(SettingRow("地区", self.location_selector, "选择天气数据对应的地理位置"))
 
         self.test_btn = QPushButton("测试连接")
-        self.test_btn.setFixedSize(80, 32)
+        self.test_btn.setObjectName("actionBtn")
         self.test_btn.setCursor(Qt.PointingHandCursor)
-        self.test_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: {accent};
-                color: white;
-                border: none;
-                border-radius: 6px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background: rgba({r}, {g}, {b}, 0.8);
-            }}
-            QPushButton:disabled {{
-                background: #cccccc;
-                color: #ffffff;
-            }}
-        """)
         self.test_btn.clicked.connect(self._on_test_clicked)
-        test_row.addWidget(self.test_btn)
+        c2.addRow(SettingRow("连接状态", self.test_btn, "验证 API 配置是否正确"))
+        self.body.addWidget(c2)
 
-        self.test_result_label = QLabel("")
-        self.test_result_label.setStyleSheet(
-            "color: #888888; font-size: 12px; background: transparent;"
-        )
-        self.test_result_label.setWordWrap(True)
-        test_row.addWidget(self.test_result_label, 1)
-
-        layout.addLayout(test_row)
-
-        layout.addStretch()
-
-        scroll.setWidget(content)
-
-        page_layout = QVBoxLayout(self)
-        page_layout.setContentsMargins(0, 0, 0, 0)
-        page_layout.addWidget(scroll)
+        self.test_result_label = None
 
     def _on_api_host_changed(self):
         self.config.update(weather_api_host=self.api_host_input.text())
         clear_weather_cache()
-        self.dialog.settings_changed.emit('float_ball')
+        self.dialog.settings_changed.emit("float_ball")
 
     def _on_api_key_changed(self):
         self.config.update(weather_api_key=self.api_key_input.text())
         clear_weather_cache()
-        self.dialog.settings_changed.emit('float_ball')
+        self.dialog.settings_changed.emit("float_ball")
 
     def _on_location_changed(self, location_id):
         self.config.update(weather_location=location_id)
         clear_weather_cache()
-        self.dialog.settings_changed.emit('float_ball')
+        self.dialog.settings_changed.emit("float_ball")
 
     def _on_test_clicked(self):
         api_host = self.api_host_input.text().strip()
         api_key = self.api_key_input.text().strip()
         location = self.location_selector.current_location_id()
-
         if not api_host or not api_key or not location:
-            self.test_result_label.setStyleSheet(
-                "color: #888888; font-size: 12px; background: transparent;"
-            )
-            self.test_result_label.setText("请填写完整的天气配置信息")
+            self.test_btn.setText("请填写完整配置")
             return
-
         self.test_btn.setEnabled(False)
         self.test_btn.setText("连接中...")
-        self.test_result_label.setStyleSheet(
-            "color: #888888; font-size: 12px; background: transparent;"
-        )
-        self.test_result_label.setText("正在连接...")
 
         def do_test():
             result = fetch_weather(api_key, location, api_host)
@@ -556,77 +610,53 @@ class WeatherPage(QWidget):
 
     def _on_test_finished(self, success, message):
         self.test_btn.setEnabled(True)
-        self.test_btn.setText("测试连接")
+        result_text = "连接成功" if success else "连接失败"
+        self.test_btn.setText(result_text)
+        color = "#4CAF50" if success else "#FF6B6B"
+        self.test_btn.setStyleSheet(
+            f"QPushButton#actionBtn {{ background: {color}; color: white; border: none; border-radius: 12px; font-weight: 600; }}"
+        )
+        from PyQt5.QtCore import QTimer
         accent = self.dialog._accent_color
-        r = int(accent[1:3], 16)
-        g = int(accent[3:5], 16)
-        b = int(accent[5:7], 16)
-        if success:
-            self.test_result_label.setStyleSheet(
-                "color: #4CAF50; font-size: 12px; background: transparent;"
-            )
-        else:
-            self.test_result_label.setStyleSheet(
-                "color: #FF6B6B; font-size: 12px; background: transparent;"
-            )
-        self.test_result_label.setText(message)
+        QTimer.singleShot(3000, lambda: self._reset_test_button(accent))
         self.config.update(
             weather_api_host=self.api_host_input.text(),
             weather_api_key=self.api_key_input.text(),
             weather_location=self.location_selector.current_location_id(),
         )
         clear_weather_cache()
-        self.dialog.settings_changed.emit('float_ball')
+        self.dialog.settings_changed.emit("float_ball")
+
+    def _reset_test_button(self, accent_color):
+        self.test_btn.setText("测试连接")
+        self.test_btn.setStyleSheet(
+            f"QPushButton#actionBtn {{ background: {accent_color}; }}"
+        )
 
 
-class ExtensionsPage(QWidget):
+class ExtensionsPage(Page):
     def __init__(self, parent):
-        super().__init__()
+        super().__init__("扩展")
         self.dialog = parent
-        self._init_ui()
+        self._build_ui()
 
-    def _init_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(12)
+    def _build_ui(self):
+        c = Card("Extensions")
+        top = QHBoxLayout()
+        top.addStretch()
 
-        title_row = QHBoxLayout()
-        title_row.setContentsMargins(0, 0, 0, 0)
-        title_row.setSpacing(0)
-
-        title = QLabel("扩展管理")
-        title.setFont(QFont("", 16, QFont.Bold))
-        title.setStyleSheet("color: #1d1d1f; background: transparent;")
-        title_row.addWidget(title)
-        title_row.addStretch()
-
-        accent = self.dialog._accent_color
-        r = int(accent[1:3], 16)
-        g = int(accent[3:5], 16)
-        b = int(accent[5:7], 16)
-        new_btn = QPushButton("+ 新建")
-        new_btn.setFixedSize(80, 32)
+        new_btn = QPushButton("+ 新建扩展")
+        new_btn.setObjectName("actionBtn")
         new_btn.setCursor(Qt.PointingHandCursor)
+        new_btn.setMinimumWidth(100)
         new_btn.clicked.connect(self._on_new_plugin)
-        new_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: {accent};
-                color: white;
-                border: none;
-                border-radius: 6px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background: rgba({r}, {g}, {b}, 0.8);
-            }}
-        """)
-        title_row.addWidget(new_btn)
-        layout.addLayout(title_row)
+
+        top.addWidget(new_btn)
+        c.v.addLayout(top)
 
         scroll = DropForwardScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background-color: #ffffff; border: none; }")
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
@@ -636,11 +666,8 @@ class ExtensionsPage(QWidget):
         self.plugin_list.delete_requested.connect(self._on_delete_plugin)
 
         scroll.setWidget(self.plugin_list)
-        layout.addWidget(scroll, 1)
-
-        self.setAttribute(Qt.WA_StyledBackground, True)
-        self.setStyleSheet("background-color: #ffffff;")
-
+        c.v.addWidget(scroll)
+        self.body.addWidget(c)
         self._refresh_list()
 
     def _refresh_list(self):
@@ -650,7 +677,7 @@ class ExtensionsPage(QWidget):
 
     def _on_order_changed(self):
         self._refresh_list()
-        self.dialog.settings_changed.emit('pie_panel')
+        self.dialog.settings_changed.emit("pie_panel")
 
     def _on_new_plugin(self):
         dialog = PluginEditDialog(parent=self)
@@ -658,67 +685,59 @@ class ExtensionsPage(QWidget):
             data = dialog.get_data()
             pm = PluginManager.get()
             pm.create_plugin(
-                name=data['name'],
-                description=data['description'],
-                icon=data['icon'],
-                exec_cmd=data['exec']
+                name=data["name"],
+                description=data["description"],
+                icon=data["icon"],
+                exec_cmd=data["exec"],
             )
             self._refresh_list()
-            self.dialog.settings_changed.emit('pie_panel')
+            self.dialog.settings_changed.emit("pie_panel")
 
     def _on_edit_plugin(self, plugin_id: str):
         pm = PluginManager.get()
         enabled, disabled = pm.get_ordered_plugins()
-
         plugin_config = None
         for pid, config in enabled + disabled:
             if pid == plugin_id:
                 plugin_config = config
                 break
-
         if plugin_config is None:
             return
-
         dialog = PluginEditDialog(
             plugin_id=plugin_id,
             name=plugin_config.name,
             description=plugin_config.description,
             icon=plugin_config.icon,
             exec_cmd=plugin_config.exec,
-            parent=self
+            parent=self,
         )
-
         if dialog.exec_() == QDialog.Accepted:
             data = dialog.get_data()
             pm.update_plugin_override(plugin_id, {
-                'name': data['name'],
-                'description': data['description'],
-                'icon': data['icon'],
-                'exec': data['exec'],
+                "name": data["name"],
+                "description": data["description"],
+                "icon": data["icon"],
+                "exec": data["exec"],
             })
             self._refresh_list()
-            self.dialog.settings_changed.emit('pie_panel')
+            self.dialog.settings_changed.emit("pie_panel")
 
     def _on_delete_plugin(self, plugin_id: str):
         pm = PluginManager.get()
-
-        plugin_config = None
         enabled, disabled = pm.get_ordered_plugins()
+        plugin_config = None
         for pid, config in enabled + disabled:
             if pid == plugin_id:
                 plugin_config = config
                 break
-
         if plugin_config is None:
             return
-
         dialog = ConfirmDialog(
             "确认删除",
-            f"确定要删除扩展 \"{plugin_config.name}\" 吗？\n此操作不可撤销。",
-            self
+            f'确定要删除扩展 "{plugin_config.name}" 吗？\n此操作不可撤销。',
+            self,
         )
-
         if dialog.exec_() == QDialog.Accepted:
             pm.delete_plugin(plugin_id)
             self._refresh_list()
-            self.dialog.settings_changed.emit('pie_panel')
+            self.dialog.settings_changed.emit("pie_panel")

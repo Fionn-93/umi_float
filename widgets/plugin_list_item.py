@@ -24,13 +24,13 @@ class PluginListItem(QFrame):
         self._icon_name = icon_name
         self._drag_start_pos = None
         
-        self.setFixedHeight(48)
+        self.setFixedHeight(52)
         self.setObjectName("pluginListItem")
         self._init_ui()
     
     def _init_ui(self):
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setContentsMargins(8, 6, 8, 6)
         layout.setSpacing(12)
         
         drag_handle = QLabel("⋮⋮")
@@ -54,39 +54,43 @@ class PluginListItem(QFrame):
         layout.addWidget(name_label, 1)
         
         edit_btn = QPushButton("编辑")
-        edit_btn.setFixedSize(48, 28)
+        edit_btn.setFixedSize(56, 30)
         edit_btn.setCursor(Qt.PointingHandCursor)
         edit_btn.clicked.connect(lambda: self.edit_requested.emit(self.plugin_id))
         edit_btn.setStyleSheet("""
             QPushButton {
-                background: #f5f5f5;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                color: #555;
-                font-size: 12px;
+                background: #ffffff;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                color: #374151;
+                font-size: 13px;
+                height: 30px;
+                padding: 0 8px;
             }
             QPushButton:hover {
-                background: #e8e8e8;
-                border-color: #ccc;
+                background: #f3f4f6;
+                border-color: #9ca3af;
             }
         """)
         layout.addWidget(edit_btn)
         
         delete_btn = QPushButton("删除")
-        delete_btn.setFixedSize(48, 28)
+        delete_btn.setFixedSize(56, 30)
         delete_btn.setCursor(Qt.PointingHandCursor)
         delete_btn.clicked.connect(lambda: self.delete_requested.emit(self.plugin_id))
         delete_btn.setStyleSheet("""
             QPushButton {
-                background: #fff5f5;
-                border: 1px solid #ffcdd2;
-                border-radius: 4px;
-                color: #c62828;
-                font-size: 12px;
+                background: #fef2f2;
+                border: 1px solid #fecaca;
+                border-radius: 6px;
+                color: #b91c1c;
+                font-size: 13px;
+                height: 30px;
+                padding: 0 8px;
             }
             QPushButton:hover {
-                background: #ffebee;
-                border-color: #ef9a9a;
+                background: #fee2e2;
+                border-color: #f87171;
             }
         """)
         layout.addWidget(delete_btn)
