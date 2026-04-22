@@ -2,14 +2,20 @@
 """
 Umi-Float 主入口
 """
+import logging
 import sys
 from PyQt5.QtWidgets import QApplication, QMenu, QAction, QDialog
 from PyQt5.QtCore import QTimer, QPoint
 from PyQt5.QtGui import QIcon
 
+logger = logging.getLogger(__name__)
+
 from core.config import get_config
 from core.state import get_state
-from core.constants import APP_NAME, APP_VERSION
+from core.constants import APP_NAME, APP_VERSION, DEFAULT_CONFIG
+from utils.ip_location import get_ip_location
+from utils.weather_info import lookup_city_by_coords
+from widgets.location_selector import lookup_city_id_by_name
 
 from ui.float_widget import FloatWidget
 from ui.tray_icon import TrayIcon
@@ -33,9 +39,47 @@ class Application:
         self.config = get_config()
         self.state = get_state()
         self.plugin_manager = PluginManager()
-        
+
+        self._try_auto_locate()
+
         self._init_ui()
-    
+
+    def _try_auto_locate(self):
+        cfg = self.config.get()
+        default_id = DEFAULT_CONFIG.get("weather_location", "101010100")
+        if cfg.get("weather_location", default_id) != default_id:
+            logger.info("跳过自动定位: weather_location 已设置为 %s", cfg.get("weather_location"))
+            return
+        api_key = cfg.get("weather_api_key", "")
+        if not api_key:
+            logger.info("跳过自动定位: 未配置 API Key")
+            return
+        import threading
+        def do_locate():
+            logger.info("开始自动定位...")
+            ip_info = get_ip_location()
+            if ip_info is None:
+                logger.warning("自动定位失败: 无法获取IP位置")
+                return
+            location_id = lookup_city_by_coords(
+                api_key,
+                ip_info["lat"],
+                ip_info["lon"],
+                cfg.get("weather_api_host") or None,
+            )
+            if location_id is None:
+                logger.warning("自动定位: QWeather API 未找到，尝试本地匹配...")
+                location_id = lookup_city_id_by_name(
+                    ip_info.get("city", ""), ip_info.get("region", "")
+                )
+            if location_id is None:
+                logger.warning("自动定位失败: 未找到 %s 对应的城市", ip_info.get("city"))
+                return
+            logger.info("自动定位成功: location_id=%s, city=%s", location_id, ip_info.get("city"))
+            self.config.update(weather_location=location_id)
+        thread = threading.Thread(target=do_locate, daemon=True)
+        thread.start()
+
     def _init_ui(self):
         """初始化UI"""
         self.float_widget = FloatWidget()

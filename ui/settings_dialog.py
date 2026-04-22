@@ -14,10 +14,11 @@ from PyQt5.QtGui import QFont, QPalette, QColor
 from core.config import get_config
 from utils.theme_colors import get_all_themes, DEFAULT_THEME
 from utils.system_info import SystemInfo
-from utils.weather_info import fetch_weather, clear_weather_cache
+from utils.weather_info import fetch_weather, clear_weather_cache, lookup_city_by_coords
+from utils.ip_location import get_ip_location
 from plugins.plugin_manager import PluginManager
 from widgets.plugin_list_widget import PluginListWidget, DropForwardScrollArea
-from widgets.location_selector import LocationSelector
+from widgets.location_selector import LocationSelector, lookup_city_id_by_name
 from ui.plugin_edit_dialog import PluginEditDialog
 from ui.confirm_dialog import ConfirmDialog
 
@@ -531,16 +532,21 @@ class PersonalizePage(Page):
 
 class WeatherPage(Page):
     test_finished = pyqtSignal(bool, str)
+    locate_finished = pyqtSignal(bool, str)
 
     def __init__(self, parent_dialog):
         super().__init__("天气")
         self.dialog = parent_dialog
         self.config = get_config()
         self.test_finished.connect(self._on_test_finished)
+        self.locate_finished.connect(self._on_locate_finished)
         self._build_ui()
 
     def _build_ui(self):
+        from widgets.toast import ToastWidget
         cfg = self.config.get()
+
+        self.toast = ToastWidget.get_instance(self)
 
         c1 = Card("Weather Service")
         self.api_host_input = QLineEdit()
@@ -561,7 +567,21 @@ class WeatherPage(Page):
             current_id=cfg.get("weather_location", "101010100")
         )
         self.location_selector.location_changed.connect(self._on_location_changed)
-        c2.addRow(SettingRow("地区", self.location_selector, "选择天气数据对应的地理位置"))
+
+        location_row = QWidget()
+        location_row_layout = QHBoxLayout(location_row)
+        location_row_layout.setContentsMargins(0, 0, 0, 0)
+        location_row_layout.setSpacing(8)
+        location_row_layout.addWidget(self.location_selector)
+
+        self.locate_btn = QPushButton("自动定位")
+        self.locate_btn.setObjectName("locateBtn")
+        self.locate_btn.setCursor(Qt.PointingHandCursor)
+        self.locate_btn.clicked.connect(self._on_locate_clicked)
+        location_row_layout.addWidget(self.locate_btn)
+        location_row_layout.addStretch(1)
+
+        c2.addRow(SettingRow("地区", location_row, "选择天气数据对应的地理位置"))
 
         self.test_btn = QPushButton("测试连接")
         self.test_btn.setObjectName("actionBtn")
@@ -569,8 +589,6 @@ class WeatherPage(Page):
         self.test_btn.clicked.connect(self._on_test_clicked)
         c2.addRow(SettingRow("连接状态", self.test_btn, "验证 API 配置是否正确"))
         self.body.addWidget(c2)
-
-        self.test_result_label = None
 
     def _on_api_host_changed(self):
         self.config.update(weather_api_host=self.api_host_input.text())
@@ -592,10 +610,9 @@ class WeatherPage(Page):
         api_key = self.api_key_input.text().strip()
         location = self.location_selector.current_location_id()
         if not api_host or not api_key or not location:
-            self.test_btn.setText("请填写完整配置")
+            self.toast.show_toast("请填写完整配置", success=False)
             return
         self.test_btn.setEnabled(False)
-        self.test_btn.setText("连接中...")
 
         def do_test():
             result = fetch_weather(api_key, location, api_host)
@@ -610,15 +627,10 @@ class WeatherPage(Page):
 
     def _on_test_finished(self, success, message):
         self.test_btn.setEnabled(True)
-        result_text = "连接成功" if success else "连接失败"
-        self.test_btn.setText(result_text)
-        color = "#4CAF50" if success else "#FF6B6B"
-        self.test_btn.setStyleSheet(
-            f"QPushButton#actionBtn {{ background: {color}; color: white; border: none; border-radius: 12px; font-weight: 600; }}"
-        )
-        from PyQt5.QtCore import QTimer
-        accent = self.dialog._accent_color
-        QTimer.singleShot(3000, lambda: self._reset_test_button(accent))
+        if success:
+            self.toast.show_toast(message, success=True)
+        else:
+            self.toast.show_toast(message, success=False)
         self.config.update(
             weather_api_host=self.api_host_input.text(),
             weather_api_key=self.api_key_input.text(),
@@ -627,11 +639,54 @@ class WeatherPage(Page):
         clear_weather_cache()
         self.dialog.settings_changed.emit("float_ball")
 
-    def _reset_test_button(self, accent_color):
-        self.test_btn.setText("测试连接")
-        self.test_btn.setStyleSheet(
-            f"QPushButton#actionBtn {{ background: {accent_color}; }}"
-        )
+    def _on_locate_clicked(self):
+        import logging
+        logger = logging.getLogger(__name__)
+        api_key = self.api_key_input.text().strip()
+        if not api_key:
+            self.toast.show_toast("请先填写 API Key", success=False)
+            return
+        self.locate_btn.setEnabled(False)
+
+        def do_locate():
+            logger.info("开始自动定位...")
+            ip_info = get_ip_location()
+            if ip_info is None:
+                logger.warning("自动定位失败: 无法获取IP位置")
+                self.locate_finished.emit(False, "无法获取IP位置")
+                return
+            location_id = lookup_city_by_coords(
+                api_key,
+                ip_info["lat"],
+                ip_info["lon"],
+                self.api_host_input.text().strip() or None,
+            )
+            if location_id is None:
+                logger.warning("自动定位: QWeather API 未找到，尝试本地匹配...")
+                location_id = lookup_city_id_by_name(
+                    ip_info.get("city", ""), ip_info.get("region", "")
+                )
+            if location_id is None:
+                logger.warning("自动定位失败: 未找到 %s 对应的城市", ip_info.get("city"))
+                self.locate_finished.emit(False, f"未找到 {ip_info['city']} 对应的城市")
+                return
+            logger.info("自动定位成功: location_id=%s", location_id)
+            self.locate_finished.emit(True, location_id)
+
+        thread = threading.Thread(target=do_locate, daemon=True)
+        thread.start()
+
+    def _on_locate_finished(self, success, result):
+        self.locate_btn.setEnabled(True)
+        if success:
+            location_id = result
+            self.location_selector.set_location_by_id(location_id)
+            self.config.update(weather_location=location_id)
+            clear_weather_cache()
+            self.dialog.settings_changed.emit("float_ball")
+            self.toast.show_toast("定位成功", success=True)
+        else:
+            self.toast.show_toast(result, success=False)
 
 
 class ExtensionsPage(Page):

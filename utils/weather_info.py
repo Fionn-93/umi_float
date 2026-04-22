@@ -2,13 +2,14 @@
 天气信息工具模块
 调用和风天气 API 获取当前天气
 """
+import logging
 import time
 import json
 import gzip
 import urllib.request
-import urllib.error
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
 
 _CACHE = {
     'data': None,
@@ -155,3 +156,56 @@ def fetch_weather(api_key, location, api_host=None):
 def get_cached_weather():
     """获取缓存的天气数据（不发起网络请求）"""
     return _CACHE['data']
+
+
+def lookup_city_by_coords(api_key, lat, lon, api_host=None):
+    """通过经纬度查找 QWeather 城市 Location ID
+
+    Args:
+        api_key: 和风天气 API Key
+        lat: 纬度
+        lon: 经度
+        api_host: API 地址，为 None 时使用默认值
+
+    Returns:
+        str: QWeather Location ID（如 "101020100"）
+        失败时返回 None
+    """
+    if not api_key:
+        return None
+
+    if not api_host:
+        api_host = "je693837aw.re.qweatherapi.com"
+
+    try:
+        url = (
+            f"https://{api_host}/v7/city/lookup"
+            f"?location={lon},{lat}&key={api_key}"
+        )
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Umi-Float/0.1",
+            "Accept-Encoding": "gzip",
+        })
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw = resp.read()
+            try:
+                raw = gzip.decompress(raw)
+            except Exception:
+                pass
+            data = json.loads(raw.decode('utf-8'))
+
+        if data.get('code') != '200':
+            logger.warning("城市查找 API 错误: code=%s", data.get('code'))
+            return None
+
+        location_list = data.get('location', [])
+        if location_list:
+            location_id = str(location_list[0].get('id'))
+            logger.info("城市查找成功: id=%s", location_id)
+            return location_id
+        logger.warning("城市查找失败: 未找到 (%.4f, %.4f) 对应的城市", lat, lon)
+        return None
+
+    except Exception as e:
+        logger.warning("城市查找失败: %s", e)
+        return None

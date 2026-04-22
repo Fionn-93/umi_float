@@ -22,6 +22,46 @@ def _load_location_data():
     return _data_cache
 
 
+def lookup_city_id_by_name(city_name, region=""):
+    """根据城市名和省份名查找对应的 QWeather Location ID
+
+    Args:
+        city_name: 城市名（如"武汉"、"上海市"）
+        region: 省份名（如"湖北省"），用于精确匹配
+
+    Returns:
+        str: QWeather Location ID（如 "101020100"）
+        找不到返回 None
+    """
+    if not city_name:
+        return None
+
+    data = _load_location_data()
+    city_clean = city_name.replace("市", "").replace("省", "").replace("区", "")
+
+    for prov in data:
+        prov_name = prov.get("name", "").replace("市", "").replace("省", "")
+        if region and prov_name != region.replace("省", ""):
+            continue
+
+        for city in prov.get("cities", []):
+            city_n = city.get("name", "").replace("市", "")
+            if city_n == city_clean or city_clean in city_n:
+                districts = city.get("districts", [])
+                if districts:
+                    return str(districts[0].get("id"))
+
+        if not region:
+            for city in prov.get("cities", []):
+                city_n = city.get("name", "").replace("市", "")
+                if city_n == city_clean or city_clean in city_n:
+                    districts = city.get("districts", [])
+                    if districts:
+                        return str(districts[0].get("id"))
+
+    return None
+
+
 class LocationSelector(QWidget):
     location_changed = pyqtSignal(str)
 
@@ -137,6 +177,9 @@ class LocationSelector(QWidget):
                         self._updating = False
                         return
         self._updating = False
+
+    def set_location_by_id(self, location_id):
+        self._select_by_id(location_id)
 
     def current_location_id(self):
         idx = self.district_combo.currentIndex()
