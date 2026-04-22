@@ -20,6 +20,7 @@ from plugins.plugin_manager import PluginManager
 from widgets.plugin_list_widget import PluginListWidget, DropForwardScrollArea
 from widgets.location_selector import LocationSelector, lookup_city_id_by_name
 from ui.plugin_edit_dialog import PluginEditDialog
+from ui.app_picker_dialog import AppPickerDialog
 from ui.confirm_dialog import ConfirmDialog
 
 
@@ -143,9 +144,19 @@ class Page(QWidget):
         self.setAttribute(Qt.WA_StyledBackground, True)
         root = QVBoxLayout(self)
         root.setContentsMargins(28, 24, 28, 24)
+
+        title_row = QHBoxLayout()
+        title_row.setSpacing(12)
         header = QLabel(title)
         header.setObjectName("pageTitle")
-        root.addWidget(header)
+        title_row.addWidget(header)
+        title_row.addStretch()
+
+        self.title_actions = QHBoxLayout()
+        self.title_actions.setSpacing(8)
+        title_row.addLayout(self.title_actions)
+
+        root.addLayout(title_row)
         self.body = QVBoxLayout()
         self.body.setSpacing(18)
         root.addLayout(self.body)
@@ -697,17 +708,20 @@ class ExtensionsPage(Page):
 
     def _build_ui(self):
         c = Card("Extensions")
-        top = QHBoxLayout()
-        top.addStretch()
 
         new_btn = QPushButton("+ 新建扩展")
         new_btn.setObjectName("actionBtn")
         new_btn.setCursor(Qt.PointingHandCursor)
         new_btn.setMinimumWidth(100)
         new_btn.clicked.connect(self._on_new_plugin)
+        self.title_actions.addWidget(new_btn)
 
-        top.addWidget(new_btn)
-        c.v.addLayout(top)
+        shortcut_btn = QPushButton("+ 新建快捷方式")
+        shortcut_btn.setObjectName("actionBtn")
+        shortcut_btn.setCursor(Qt.PointingHandCursor)
+        shortcut_btn.setMinimumWidth(120)
+        shortcut_btn.clicked.connect(self._on_new_shortcut)
+        self.title_actions.addWidget(shortcut_btn)
 
         scroll = DropForwardScrollArea()
         scroll.setWidgetResizable(True)
@@ -747,6 +761,21 @@ class ExtensionsPage(Page):
             )
             self._refresh_list()
             self.dialog.settings_changed.emit("pie_panel")
+
+    def _on_new_shortcut(self):
+        dialog = AppPickerDialog(parent=self)
+        if dialog.exec_() == QDialog.Accepted:
+            entry = dialog.get_selected_entry()
+            if entry:
+                pm = PluginManager.get()
+                pm.create_plugin(
+                    name=entry.name,
+                    description=entry.comment,
+                    icon=entry.icon,
+                    exec_cmd=entry.exec,
+                )
+                self._refresh_list()
+                self.dialog.settings_changed.emit("pie_panel")
 
     def _on_edit_plugin(self, plugin_id: str):
         pm = PluginManager.get()
