@@ -4,6 +4,7 @@
 
 import threading
 from PyQt5.QtWidgets import (
+    QApplication,
     QDialog,
     QHBoxLayout,
     QVBoxLayout,
@@ -22,7 +23,7 @@ from PyQt5.QtWidgets import (
     QGraphicsOpacityEffect,
     QSizePolicy,
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPropertyAnimation
+from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPropertyAnimation, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor
 
 from core.config import get_config
@@ -197,6 +198,17 @@ class SettingsDialog(QDialog):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self._init_ui()
         self.applyStyle()
+
+    def showEvent(self, event):
+        QTimer.singleShot(0, self._center_on_screen)
+        super().showEvent(event)
+
+    def _center_on_screen(self):
+        screen = QApplication.primaryScreen().geometry()
+        self.move(
+            (screen.width() - self.width()) // 2 + screen.x(),
+            (screen.height() - self.height()) // 2 + screen.y(),
+        )
 
     def _init_ui(self):
         outer = QVBoxLayout(self)
@@ -591,7 +603,7 @@ class WeatherPage(Page):
 
         cfg = self.config.get()
 
-        self.toast = ToastWidget.get_instance(self)
+        self.toast = ToastWidget.get_instance(self.window())
 
         c1 = Card("Weather Service")
         self.api_host_input = QLineEdit()
@@ -629,13 +641,15 @@ class WeatherPage(Page):
         location_row_layout.addStretch(1)
 
         c2.addRow(SettingRow("地区", location_row, "选择天气数据对应的地理位置"))
+        self.body.addWidget(c2)
 
+        c3 = Card("Connection")
         self.test_btn = QPushButton("测试连接")
         self.test_btn.setObjectName("actionBtn")
         self.test_btn.setCursor(Qt.PointingHandCursor)
         self.test_btn.clicked.connect(self._on_test_clicked)
-        c2.addRow(SettingRow("连接状态", self.test_btn, "验证 API 配置是否正确"))
-        self.body.addWidget(c2)
+        c3.addRow(SettingRow("连接状态", self.test_btn, "验证 API 配置是否正确"))
+        self.body.addWidget(c3)
 
     def _on_api_host_changed(self):
         self.config.update(weather_api_host=self.api_host_input.text())

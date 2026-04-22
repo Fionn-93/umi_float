@@ -157,6 +157,7 @@ class Application:
             self.drawer_panel.exit_preview_mode()
         if self.drawer_panel._hover_mode and self.drawer_panel.isVisible():
             self.drawer_panel._leave_timer.start()
+        self.settings_dialog = None
 
     def _on_page_changed(self, page_index):
         """页面切换时处理预览模式"""
