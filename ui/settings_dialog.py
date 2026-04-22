@@ -709,17 +709,17 @@ class ExtensionsPage(Page):
     def _build_ui(self):
         c = Card("Extensions")
 
-        new_btn = QPushButton("+ 新建扩展")
+        new_btn = QPushButton("自定义新增")
         new_btn.setObjectName("actionBtn")
         new_btn.setCursor(Qt.PointingHandCursor)
         new_btn.setMinimumWidth(100)
         new_btn.clicked.connect(self._on_new_plugin)
         self.title_actions.addWidget(new_btn)
 
-        shortcut_btn = QPushButton("+ 新建快捷方式")
+        shortcut_btn = QPushButton("从应用新增")
         shortcut_btn.setObjectName("actionBtn")
         shortcut_btn.setCursor(Qt.PointingHandCursor)
-        shortcut_btn.setMinimumWidth(120)
+        shortcut_btn.setMinimumWidth(108)
         shortcut_btn.clicked.connect(self._on_new_shortcut)
         self.title_actions.addWidget(shortcut_btn)
 
