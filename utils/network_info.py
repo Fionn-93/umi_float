@@ -2,10 +2,11 @@
 网络流量监控模块
 读取 /proc/net/dev 计算实时上下行速率
 """
+
 import time
 
-EXCLUDED_INTERFACES = {'lo', 'docker0'}
-EXCLUDED_PREFIXES = ('veth', 'virbr', 'br-', 'docker')
+EXCLUDED_INTERFACES = {"lo", "docker0"}
+EXCLUDED_PREFIXES = ("veth", "virbr", "br-", "docker")
 
 
 def _is_real_interface(name):
@@ -20,10 +21,10 @@ def _is_real_interface(name):
 def _read_net_dev():
     stats = {}
     try:
-        with open('/proc/net/dev', 'r') as f:
+        with open("/proc/net/dev", "r") as f:
             lines = f.readlines()
             for line in lines[2:]:
-                parts = line.strip().split(':')
+                parts = line.strip().split(":")
                 if len(parts) != 2:
                     continue
                 iface = parts[0].strip()
@@ -33,7 +34,7 @@ def _read_net_dev():
                 if len(fields) >= 10:
                     rx_bytes = int(fields[0])
                     tx_bytes = int(fields[8])
-                    stats[iface] = {'rx': rx_bytes, 'tx': tx_bytes}
+                    stats[iface] = {"rx": rx_bytes, "tx": tx_bytes}
     except Exception:
         pass
     return stats
@@ -79,8 +80,8 @@ class NetworkMonitor:
         for iface, cur in cur_stats.items():
             if iface in self._prev_stats:
                 prev = self._prev_stats[iface]
-                total_rx += max(0, cur['rx'] - prev['rx'])
-                total_tx += max(0, cur['tx'] - prev['tx'])
+                total_rx += max(0, cur["rx"] - prev["rx"])
+                total_tx += max(0, cur["tx"] - prev["tx"])
 
         self._prev_stats = cur_stats
         self._prev_time = now
@@ -89,8 +90,8 @@ class NetworkMonitor:
         tx_speed = total_tx / elapsed
 
         return {
-            'up': tx_speed,
-            'down': rx_speed,
-            'up_text': _format_speed(tx_speed),
-            'down_text': _format_speed(rx_speed),
+            "up": tx_speed,
+            "down": rx_speed,
+            "up_text": _format_speed(tx_speed),
+            "down_text": _format_speed(rx_speed),
         }

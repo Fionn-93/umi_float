@@ -6,7 +6,7 @@
 - **极简主义**：减少边框和装饰，通过背景色变化引导交互
 - **呼吸感**：合理使用内边距和外边距，不要让文字和控件紧贴边框
 - **动态反馈**：所有交互项必须有明显的 hover 状态
-- **统一性**：全局使用系统强调色，保持视觉一致性
+- **统一性**：全局使用应用主题色，保持视觉一致性
 - **对齐基准**：设置行左侧文字区固定宽度，右侧控件从同一条垂直线开始
 
 ### 1.2 信息分层
@@ -18,15 +18,16 @@
 
 ## 二、颜色系统
 
-### 2.1 强调色（系统动态）
-- **动态获取**：`SystemInfo.get_accent_color()`
-- **默认值**：`#0078d4`
-- **用途**：按钮、选中状态、聚焦边框、进度条等 UI 控件
-- **来源**：UOS 系统设置 → 个性化 → 强调色
+### 2.1 强调色（应用主题）
+- **动态获取**：`get_current_accent_color()` — 从用户选择的预设主题派生
+- **默认值**：`#2CA7E8`（Deepin 主题）
+- **用途**：按钮、选中状态、聚焦边框、进度条、悬浮球、面板等全部 UI 控件
+- **来源**：应用设置 → 个性化 → 主题预设
+- **切换时实时刷新**：主题变更后所有对话框同步更新样式
 
 ### 2.2 预设主题色（应用内）
 
-用于悬浮球、Pie 面板的配色派生。
+用于悬浮球、Pie 面板、设置对话框、所有弹窗的配色派生。全局统一，不再使用系统强调色。
 
 | 主题键 | 显示名称 | 颜色值 | 分类 |
 |--------|----------|--------|------|
@@ -449,9 +450,9 @@ QListWidget::item:hover:!selected {
 
 ### 8.3 强调色获取
 ```python
-from utils.system_info import SystemInfo
+from utils.theme_colors import get_current_accent_color
 
-accent_color = SystemInfo.get_accent_color()
+accent_color = get_current_accent_color()
 r = int(accent_color[1:3], 16)
 g = int(accent_color[3:5], 16)
 b = int(accent_color[5:7], 16)

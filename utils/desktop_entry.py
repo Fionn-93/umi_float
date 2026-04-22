@@ -1,6 +1,7 @@
 """
 桌面入口解析器 - 扫描系统中的 .desktop 文件
 """
+
 import locale
 import os
 import configparser
@@ -43,7 +44,20 @@ def _get_locale_suffix() -> str:
 
 def _clean_exec(exec_str: str) -> str:
     exec_str = exec_str.strip()
-    for suffix in ["%f", "%F", "%u", "%U", "%d", "%D", "%n", "%N", "%c", "%k", "%v", "%m"]:
+    for suffix in [
+        "%f",
+        "%F",
+        "%u",
+        "%U",
+        "%d",
+        "%D",
+        "%n",
+        "%N",
+        "%c",
+        "%k",
+        "%v",
+        "%m",
+    ]:
         exec_str = exec_str.replace(suffix, "")
     exec_str = exec_str.strip()
     return exec_str
@@ -56,9 +70,13 @@ def _is_valid_desktop_entry(cp: configparser.ConfigParser) -> bool:
         entry_type = cp.get("Desktop Entry", "Type", fallback="")
         if entry_type != "Application":
             return False
-        if cp.has_option("Desktop Entry", "NoDisplay") and cp.getboolean("Desktop Entry", "NoDisplay"):
+        if cp.has_option("Desktop Entry", "NoDisplay") and cp.getboolean(
+            "Desktop Entry", "NoDisplay"
+        ):
             return False
-        if cp.has_option("Desktop Entry", "Hidden") and cp.getboolean("Desktop Entry", "Hidden"):
+        if cp.has_option("Desktop Entry", "Hidden") and cp.getboolean(
+            "Desktop Entry", "Hidden"
+        ):
             return False
         if not cp.has_option("Desktop Entry", "Exec"):
             return False
@@ -69,21 +87,29 @@ def _is_valid_desktop_entry(cp: configparser.ConfigParser) -> bool:
 
 def _parse_desktop_file(file_path: str) -> Optional[AppEntry]:
     try:
-        cp = configparser.ConfigParser(comment_prefixes="#", strict=False, interpolation=None)
+        cp = configparser.ConfigParser(
+            comment_prefixes="#", strict=False, interpolation=None
+        )
         cp.read(file_path, encoding="utf-8")
 
         if not _is_valid_desktop_entry(cp):
             return None
 
         ls = _get_locale_suffix()
-        name = cp.get("Desktop Entry", f"Name{ls}", fallback="") or cp.get("Desktop Entry", "Name", fallback="")
+        name = cp.get("Desktop Entry", f"Name{ls}", fallback="") or cp.get(
+            "Desktop Entry", "Name", fallback=""
+        )
         if not name:
-            name = cp.get("Desktop Entry", f"GenericName{ls}", fallback="") or cp.get("Desktop Entry", "GenericName", fallback="")
+            name = cp.get("Desktop Entry", f"GenericName{ls}", fallback="") or cp.get(
+                "Desktop Entry", "GenericName", fallback=""
+            )
         if not name:
             return None
 
         icon = cp.get("Desktop Entry", "Icon", fallback="")
-        comment = cp.get("Desktop Entry", f"Comment{ls}", fallback="") or cp.get("Desktop Entry", "Comment", fallback="")
+        comment = cp.get("Desktop Entry", f"Comment{ls}", fallback="") or cp.get(
+            "Desktop Entry", "Comment", fallback=""
+        )
         exec_cmd = _clean_exec(cp.get("Desktop Entry", "Exec", fallback=""))
         categories = cp.get("Desktop Entry", "Categories", fallback="")
 

@@ -18,16 +18,16 @@ def get_memory_usage():
     """
     try:
         meminfo = {}
-        with open('/proc/meminfo', 'r') as f:
+        with open("/proc/meminfo", "r") as f:
             for line in f:
                 parts = line.split()
                 if len(parts) >= 2:
-                    key = parts[0].rstrip(':')
+                    key = parts[0].rstrip(":")
                     value = int(parts[1])
                     meminfo[key] = value
 
-        total = meminfo.get('MemTotal', 0)
-        available = meminfo.get('MemAvailable', meminfo.get('MemFree', 0))
+        total = meminfo.get("MemTotal", 0)
+        available = meminfo.get("MemAvailable", meminfo.get("MemFree", 0))
 
         if total == 0:
             return None
@@ -37,10 +37,10 @@ def get_memory_usage():
         kb_to_gb = 1024 * 1024
 
         return {
-            'percent': round(percent, 1),
-            'total_gb': round(total / kb_to_gb, 1),
-            'used_gb': round(used / kb_to_gb, 1),
-            'available_gb': round(available / kb_to_gb, 1),
+            "percent": round(percent, 1),
+            "total_gb": round(total / kb_to_gb, 1),
+            "used_gb": round(used / kb_to_gb, 1),
+            "available_gb": round(available / kb_to_gb, 1),
         }
     except Exception:
         return None

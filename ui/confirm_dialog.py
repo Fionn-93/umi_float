@@ -1,13 +1,19 @@
 """
 确认对话框 - 统一样式的确认/警告对话框
 """
+
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QWidget,
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 
-from utils.system_info import SystemInfo
+from utils.theme_colors import get_current_accent_color
 
 
 class ConfirmDialog(QDialog):
@@ -17,7 +23,7 @@ class ConfirmDialog(QDialog):
         super().__init__(parent)
         self._title = title
         self._message = message
-        self._accent_color = SystemInfo.get_accent_color()
+        self._accent_color = get_current_accent_color()
 
         self.setWindowTitle(title)
         self.setWindowFlags(Qt.Dialog | Qt.WindowStaysOnTopHint)
@@ -37,7 +43,9 @@ class ConfirmDialog(QDialog):
 
         message_label = QLabel(self._message)
         message_label.setWordWrap(True)
-        message_label.setStyleSheet("color: #333333; font-size: 13px; background: transparent; line-height: 1.5;")
+        message_label.setStyleSheet(
+            "color: #333333; font-size: 13px; background: transparent; line-height: 1.5;"
+        )
         layout.addWidget(message_label)
 
         layout.addStretch()

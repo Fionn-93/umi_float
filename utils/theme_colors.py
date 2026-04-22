@@ -2,51 +2,49 @@
 主题色彩派生工具
 优化方案：精简同质化蓝色，引入现代配色，保持原生适配
 """
+
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt
 
-
 PRESET_THEMES = {
     # 经典/原生类
-    'deepin': {'name': 'Deepin (默认)', 'color': '#2CA7E8'},
-    'macos': {'name': 'macOS Blue', 'color': '#007AFF'},
-    'github': {'name': 'GitHub Green', 'color': '#2EA44F'},
-
+    "deepin": {"name": "Deepin (默认)", "color": "#2CA7E8"},
+    "macos": {"name": "macOS Blue", "color": "#007AFF"},
+    "github": {"name": "GitHub Green", "color": "#2EA44F"},
     # 现代感/清新类
-    'lavender': {'name': '薰衣草紫', 'color': '#7B61FF'},
-    'coral': {'name': '珊瑚红', 'color': '#FF6B6B'},
-    'forest': {'name': '森林绿', 'color': '#4CAF50'},
-    'sunset': {'name': '夕阳橙', 'color': '#FF9F43'},
-    'rose': {'name': '玫瑰粉', 'color': '#FF85A2'},
-
+    "lavender": {"name": "薰衣草紫", "color": "#7B61FF"},
+    "coral": {"name": "珊瑚红", "color": "#FF6B6B"},
+    "forest": {"name": "森林绿", "color": "#4CAF50"},
+    "sunset": {"name": "夕阳橙", "color": "#FF9F43"},
+    "rose": {"name": "玫瑰粉", "color": "#FF85A2"},
     # 沉稳/工具类
-    'steam': {'name': 'Steam Dark', 'color': '#1B2838'},
-    'spotify': {'name': 'Spotify Green', 'color': '#1DB954'},
-    'nvidia': {'name': 'NVIDIA Green', 'color': '#76B900'},
+    "steam": {"name": "Steam Dark", "color": "#1B2838"},
+    "spotify": {"name": "Spotify Green", "color": "#1DB954"},
+    "nvidia": {"name": "NVIDIA Green", "color": "#76B900"},
 }
 
-DEFAULT_THEME = 'deepin'
+DEFAULT_THEME = "deepin"
 
 
 def get_theme_color(theme_key: str) -> str:
     """获取预设主题的颜色值"""
     theme = PRESET_THEMES.get(theme_key)
     if theme:
-        return theme['color']
-    return PRESET_THEMES[DEFAULT_THEME]['color']
+        return theme["color"]
+    return PRESET_THEMES[DEFAULT_THEME]["color"]
 
 
 def get_theme_name(theme_key: str) -> str:
     """获取预设主题的显示名称"""
     theme = PRESET_THEMES.get(theme_key)
     if theme:
-        return theme['name']
-    return PRESET_THEMES[DEFAULT_THEME]['name']
+        return theme["name"]
+    return PRESET_THEMES[DEFAULT_THEME]["name"]
 
 
 def get_all_themes() -> list:
     """获取所有预设主题列表，返回 [(key, name), ...]"""
-    return [(key, theme['name']) for key, theme in PRESET_THEMES.items()]
+    return [(key, theme["name"]) for key, theme in PRESET_THEMES.items()]
 
 
 def theme_from_key(theme_key: str) -> dict:
@@ -117,15 +115,15 @@ def derive_theme(primary: QColor) -> dict:
     center_bg_hovered.setAlpha(255)
 
     return {
-        'float_bg': float_bg,
-        'float_text': float_text,
-        'float_border': float_border,
-        'pie_bg_normal': pie_bg_normal,
-        'pie_bg_hovered': pie_bg_hovered,
-        'pie_text_normal': pie_text_normal,
-        'pie_text_hovered': pie_text_hovered,
-        'center_bg_normal': center_bg_normal,
-        'center_bg_hovered': center_bg_hovered,
+        "float_bg": float_bg,
+        "float_text": float_text,
+        "float_border": float_border,
+        "pie_bg_normal": pie_bg_normal,
+        "pie_bg_hovered": pie_bg_hovered,
+        "pie_text_normal": pie_text_normal,
+        "pie_text_hovered": pie_text_hovered,
+        "center_bg_normal": center_bg_normal,
+        "center_bg_hovered": center_bg_hovered,
     }
 
 
@@ -140,3 +138,11 @@ def _blend(color: QColor, base: QColor, ratio: float) -> QColor:
 def theme_from_hex(hex_color: str) -> dict:
     """从十六进制颜色字符串派生主题"""
     return derive_theme(QColor(hex_color))
+
+
+def get_current_accent_color() -> str:
+    """获取当前应用主题的主色（替代系统主题色）"""
+    from core.config import ConfigManager
+
+    config = ConfigManager().get()
+    return get_theme_color(config.get("theme", DEFAULT_THEME))

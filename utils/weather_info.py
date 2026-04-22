@@ -2,6 +2,7 @@
 天气信息工具模块
 调用和风天气 API 获取当前天气
 """
+
 import logging
 import time
 import json
@@ -12,9 +13,9 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 _CACHE = {
-    'data': None,
-    'timestamp': 0,
-    'ttl': 30 * 60,
+    "data": None,
+    "timestamp": 0,
+    "ttl": 30 * 60,
 }
 
 WEATHER_ICONS_DIR = Path(__file__).resolve().parent.parent / "assets" / "Weather"
@@ -84,8 +85,8 @@ def get_icon_path(icon_code):
 def clear_weather_cache():
     """清除天气缓存"""
     global _CACHE
-    _CACHE['data'] = None
-    _CACHE['timestamp'] = 0
+    _CACHE["data"] = None
+    _CACHE["timestamp"] = 0
 
 
 def fetch_weather(api_key, location, api_host=None):
@@ -113,40 +114,40 @@ def fetch_weather(api_key, location, api_host=None):
         api_host = "je693837aw.re.qweatherapi.com"
 
     now = time.time()
-    if _CACHE['data'] is not None and (now - _CACHE['timestamp']) < _CACHE['ttl']:
-        return _CACHE['data']
+    if _CACHE["data"] is not None and (now - _CACHE["timestamp"]) < _CACHE["ttl"]:
+        return _CACHE["data"]
 
     try:
-        url = (
-            f"https://{api_host}/v7/weather/now"
-            f"?key={api_key}&location={location}"
+        url = f"https://{api_host}/v7/weather/now" f"?key={api_key}&location={location}"
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Umi-Float/0.1",
+                "Accept-Encoding": "gzip",
+            },
         )
-        req = urllib.request.Request(url, headers={
-            "User-Agent": "Umi-Float/0.1",
-            "Accept-Encoding": "gzip",
-        })
         with urllib.request.urlopen(req, timeout=10) as resp:
             raw = resp.read()
-            data = json.loads(gzip.decompress(raw).decode('utf-8'))
+            data = json.loads(gzip.decompress(raw).decode("utf-8"))
 
-        if data.get('code') != '200':
+        if data.get("code") != "200":
             return None
 
-        now_data = data.get('now', {})
-        icon_code = now_data.get('icon', '100')
-        text = now_data.get('text', '')
-        temp = now_data.get('temp', '--')
+        now_data = data.get("now", {})
+        icon_code = now_data.get("icon", "100")
+        text = now_data.get("text", "")
+        temp = now_data.get("temp", "--")
 
         result = {
-            'icon': get_icon_path(icon_code),
-            'icon_code': icon_code,
-            'text': text,
-            'temp': temp,
-            'temp_unit': '°C',
+            "icon": get_icon_path(icon_code),
+            "icon_code": icon_code,
+            "text": text,
+            "temp": temp,
+            "temp_unit": "°C",
         }
 
-        _CACHE['data'] = result
-        _CACHE['timestamp'] = now
+        _CACHE["data"] = result
+        _CACHE["timestamp"] = now
         return result
 
     except Exception:
@@ -155,7 +156,7 @@ def fetch_weather(api_key, location, api_host=None):
 
 def get_cached_weather():
     """获取缓存的天气数据（不发起网络请求）"""
-    return _CACHE['data']
+    return _CACHE["data"]
 
 
 def lookup_city_by_coords(api_key, lat, lon, api_host=None):
@@ -179,28 +180,30 @@ def lookup_city_by_coords(api_key, lat, lon, api_host=None):
 
     try:
         url = (
-            f"https://{api_host}/v7/city/lookup"
-            f"?location={lon},{lat}&key={api_key}"
+            f"https://{api_host}/v7/city/lookup" f"?location={lon},{lat}&key={api_key}"
         )
-        req = urllib.request.Request(url, headers={
-            "User-Agent": "Umi-Float/0.1",
-            "Accept-Encoding": "gzip",
-        })
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Umi-Float/0.1",
+                "Accept-Encoding": "gzip",
+            },
+        )
         with urllib.request.urlopen(req, timeout=10) as resp:
             raw = resp.read()
             try:
                 raw = gzip.decompress(raw)
             except Exception:
                 pass
-            data = json.loads(raw.decode('utf-8'))
+            data = json.loads(raw.decode("utf-8"))
 
-        if data.get('code') != '200':
-            logger.warning("城市查找 API 错误: code=%s", data.get('code'))
+        if data.get("code") != "200":
+            logger.warning("城市查找 API 错误: code=%s", data.get("code"))
             return None
 
-        location_list = data.get('location', [])
+        location_list = data.get("location", [])
         if location_list:
-            location_id = str(location_list[0].get('id'))
+            location_id = str(location_list[0].get("id"))
             logger.info("城市查找成功: id=%s", location_id)
             return location_id
         logger.warning("城市查找失败: 未找到 (%.4f, %.4f) 对应的城市", lat, lon)

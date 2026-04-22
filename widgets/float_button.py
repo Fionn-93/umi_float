@@ -2,11 +2,10 @@
 悬浮球按钮组件
 支持三种显示模式：时钟、性能、天气
 """
+
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import Qt, QTimer, QTime, QRect
-from PyQt5.QtGui import (
-    QColor, QFont, QPainter, QPen, QIcon, QPixmap
-)
+from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QIcon, QPixmap
 
 from core.config import get_config
 from utils.theme_colors import theme_from_key, DEFAULT_THEME
@@ -40,11 +39,11 @@ class FloatButton(QLabel):
 
     def _apply_theme(self):
         config = get_config()
-        theme_key = config.get().get('theme', DEFAULT_THEME)
+        theme_key = config.get().get("theme", DEFAULT_THEME)
         colors = theme_from_key(theme_key)
-        self.THEME_BG = colors['float_bg']
-        self.THEME_TEXT = colors['float_text']
-        self.THEME_BORDER = colors['float_border']
+        self.THEME_BG = colors["float_bg"]
+        self.THEME_TEXT = colors["float_text"]
+        self.THEME_BORDER = colors["float_border"]
 
     def refresh_theme(self):
         self._apply_theme()
@@ -57,16 +56,16 @@ class FloatButton(QLabel):
         self.update()
 
     def set_mode(self, mode: str):
-        if mode not in ('clock', 'performance', 'weather'):
+        if mode not in ("clock", "performance", "weather"):
             return
         self._mode = mode
-        if mode == 'clock':
+        if mode == "clock":
             self.timer.setInterval(100)
             self.setStyleSheet("background-color: transparent; border: none;")
-        elif mode == 'performance':
+        elif mode == "performance":
             self.timer.setInterval(1000)
             self.setStyleSheet("background-color: transparent; border: none;")
-        elif mode == 'weather':
+        elif mode == "weather":
             self.timer.setInterval(30 * 60 * 1000)
             self.setStyleSheet("background-color: transparent; border: none;")
             self._fetch_weather()
@@ -75,21 +74,21 @@ class FloatButton(QLabel):
     def _fetch_weather(self):
         config = get_config()
         cfg = config.get()
-        api_key = cfg.get('weather_api_key', '')
-        location = cfg.get('weather_location', '101010100')
-        api_host = cfg.get('weather_api_host', '') or None
+        api_key = cfg.get("weather_api_key", "")
+        location = cfg.get("weather_location", "101010100")
+        api_host = cfg.get("weather_api_host", "") or None
         self._weather_data = fetch_weather(api_key, location, api_host)
 
     def _refresh_content(self):
-        if self._mode == 'performance':
+        if self._mode == "performance":
             mem = get_memory_usage()
             if mem:
-                self._mem_percent = mem['percent']
+                self._mem_percent = mem["percent"]
             net = NetworkMonitor.get().get_speed()
             if net:
-                self._net_up_text = net['up_text']
-                self._net_down_text = net['down_text']
-        elif self._mode == 'weather':
+                self._net_up_text = net["up_text"]
+                self._net_down_text = net["down_text"]
+        elif self._mode == "weather":
             cached = get_cached_weather()
             if cached:
                 self._weather_data = cached
@@ -98,11 +97,11 @@ class FloatButton(QLabel):
         self.update()
 
     def paintEvent(self, event):
-        if self._mode == 'clock':
+        if self._mode == "clock":
             self._paint_clock_mode()
-        elif self._mode == 'performance':
+        elif self._mode == "performance":
             self._paint_performance_mode()
-        elif self._mode == 'weather':
+        elif self._mode == "weather":
             self._paint_weather_mode()
 
     def _paint_clock_mode(self):
@@ -120,7 +119,7 @@ class FloatButton(QLabel):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        opacity = int(get_config().get().get('opacity', 0.9) * 255)
+        opacity = int(get_config().get().get("opacity", 0.9) * 255)
         bg = QColor(self.THEME_BG)
         bg.setAlpha(opacity)
         painter.setPen(Qt.NoPen)
@@ -179,7 +178,7 @@ class FloatButton(QLabel):
             1 + ring_width // 2,
             1 + ring_width // 2,
             drawing_radius * 2,
-            drawing_radius * 2
+            drawing_radius * 2,
         )
 
         painter = QPainter(self)
@@ -241,14 +240,20 @@ class FloatButton(QLabel):
 
         painter.setFont(font_sym)
         painter.setPen(QPen(self.THEME_TEXT))
-        painter.drawText(row1_x + num_w + 1, start_y + fm_num.ascent() - (fm_num.ascent() // 7), sym_text)
+        painter.drawText(
+            row1_x + num_w + 1,
+            start_y + fm_num.ascent() - (fm_num.ascent() // 7),
+            sym_text,
+        )
 
         net_x = (size - net_w) // 2
         painter.setFont(font_net)
         sec_color = QColor(self.THEME_TEXT)
         sec_color.setAlpha(160)
         painter.setPen(QPen(sec_color))
-        painter.drawText(net_x, start_y + fm_num.height() + 0 + fm_net.ascent(), net_text)
+        painter.drawText(
+            net_x, start_y + fm_num.height() + 0 + fm_net.ascent(), net_text
+        )
 
         border_pen = QPen(self.THEME_BORDER, 2)
         painter.setPen(border_pen)
@@ -264,7 +269,7 @@ class FloatButton(QLabel):
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
 
-        opacity = int(get_config().get().get('opacity', 0.9) * 255)
+        opacity = int(get_config().get().get("opacity", 0.9) * 255)
         bg = QColor(self.THEME_BG)
         bg.setAlpha(opacity)
         painter.setPen(Qt.NoPen)
@@ -279,14 +284,15 @@ class FloatButton(QLabel):
             painter.setPen(QPen(self.THEME_TEXT))
             painter.drawText(self.rect(), Qt.AlignCenter, "--°C")
         else:
-            icon_code = data.get('icon_code', '100')
+            icon_code = data.get("icon_code", "100")
             icon_path = get_icon_path(icon_code)
             icon = QIcon(icon_path)
-            temp = str(data.get('temp', '--'))
-            desc = data.get('text', '')
+            temp = str(data.get("temp", "--"))
+            desc = data.get("text", "")
 
             if not icon.isNull():
                 from PyQt5.QtWidgets import QApplication
+
                 app = QApplication.instance()
                 dpr = app.devicePixelRatio() if app else 1.0
                 icon_size = int(size * 0.50)
@@ -304,7 +310,13 @@ class FloatButton(QLabel):
 
                 painter.save()
                 painter.setOpacity(0.22)
-                painter.drawPixmap((size - icon_size) // 2, (size - icon_size) // 2, icon_size, icon_size, colored)
+                painter.drawPixmap(
+                    (size - icon_size) // 2,
+                    (size - icon_size) // 2,
+                    icon_size,
+                    icon_size,
+                    colored,
+                )
                 painter.restore()
 
             font_temp = QFont("", max(8, int(size * 0.28)), QFont.Bold)
@@ -332,14 +344,20 @@ class FloatButton(QLabel):
             painter.drawText(row1_x, start_y + fm_temp.ascent(), temp)
 
             painter.setFont(font_unit)
-            painter.drawText(row1_x + temp_w + 1, start_y + fm_temp.ascent() - (fm_temp.ascent() // 7), "°C")
+            painter.drawText(
+                row1_x + temp_w + 1,
+                start_y + fm_temp.ascent() - (fm_temp.ascent() // 7),
+                "°C",
+            )
 
             desc_x = (size - fm_desc.horizontalAdvance(desc)) // 2
             painter.setFont(font_desc)
             color_desc = QColor(self.THEME_TEXT)
             color_desc.setAlpha(160)
             painter.setPen(QPen(color_desc))
-            painter.drawText(desc_x, start_y + fm_temp.height() + 0 + fm_desc.ascent(), desc)
+            painter.drawText(
+                desc_x, start_y + fm_temp.height() + 0 + fm_desc.ascent(), desc
+            )
 
         border_pen = QPen(self.THEME_BORDER, 2)
         painter.setPen(border_pen)

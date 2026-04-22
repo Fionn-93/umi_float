@@ -2,6 +2,7 @@
 地区级联选择器 - 省→市→区三级联动
 数据来源: data/qweather_china.json (和风天气 Location ID)
 """
+
 import json
 from pathlib import Path
 

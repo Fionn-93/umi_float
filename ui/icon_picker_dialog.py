@@ -1,53 +1,147 @@
 """
 图标选择器对话框
 """
+
 from typing import Optional
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTabWidget, QWidget, QGridLayout, QScrollArea, QFrame,
-    QLineEdit, QFileDialog, QSizePolicy
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTabWidget,
+    QWidget,
+    QGridLayout,
+    QScrollArea,
+    QFrame,
+    QLineEdit,
+    QFileDialog,
+    QSizePolicy,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from PyQt5.QtGui import QIcon, QFont, QPixmap
 
 from core.constants import DATA_DIR
-from utils.system_info import SystemInfo
-
+from utils.theme_colors import get_current_accent_color
 
 PRESET_ICONS = [
-    "applications-system", "applications-utilities", "preferences-system",
-    "preferences-desktop", "system-settings", "system-software-install",
-    "document-new", "document-open", "document-save", "document-print",
-    "folder", "folder-open", "folder-new", "user-home", "computer",
-    "drive-harddisk", "drive-optical", "drive-removable-media",
-    "accessories-calculator", "accessories-text-editor", "utilities-terminal",
-    "system-monitor", "system-search", "system-shutdown", "system-reboot",
-    "audio-volume-high", "audio-volume-medium", "audio-volume-low", "audio-mute",
-    "media-playback-start", "media-playback-pause", "media-playback-stop",
-    "media-record", "media-eject", "media-optical", "media-floppy",
-    "camera-photo", "camera-web", "video-display", "video-x-generic",
-    "image-x-generic", "image", "folder-pictures", "folder-music",
-    "folder-videos", "folder-documents", "folder-download",
-    "network-wired", "network-wireless", "network-offline",
-    "network-server", "network-workgroup", "network-transmit",
-    "browser", "web-browser", "mail-unread", "mail-read",
-    "internet-mail", "internet-news", "internet-web-browser",
-    "weather-clear", "weather-clouds", "weather-rain", "weather-snow",
-    "appointment", "appointment-new", "calendar", "office-calendar",
-    "alarm", "clock", "stopwatch", "tasks",
-    "battery", "battery-full", "battery-low", "battery-caution",
-    "power", "power-profile-balanced", "power-profile-performance",
-    "help-about", "help-contents", "help-faq",
-    "dialog-information", "dialog-warning", "dialog-error", "dialog-question",
-    "list-add", "list-remove", "view-refresh", "view-fullscreen",
-    "window-close", "window-new", "window-duplicate",
-    "user", "user-desktop", "user-trash", "user-trash-full",
-    "emblem-important", "emblem-favorite", "emblem-system",
-    "stock_lock", "stock_lock-open", "stock_save", "stock_open",
-    "gnome-system-monitor", "gnome-terminal", "gnome-calculator",
-    "nemo", "thunar", "pcmanfm", "nautilus",
-    "deepin-calculator", "deepin-terminal", "deepin-editor",
-    "dde-file-manager", "dde-calendar", "dde-dock",
+    "applications-system",
+    "applications-utilities",
+    "preferences-system",
+    "preferences-desktop",
+    "system-settings",
+    "system-software-install",
+    "document-new",
+    "document-open",
+    "document-save",
+    "document-print",
+    "folder",
+    "folder-open",
+    "folder-new",
+    "user-home",
+    "computer",
+    "drive-harddisk",
+    "drive-optical",
+    "drive-removable-media",
+    "accessories-calculator",
+    "accessories-text-editor",
+    "utilities-terminal",
+    "system-monitor",
+    "system-search",
+    "system-shutdown",
+    "system-reboot",
+    "audio-volume-high",
+    "audio-volume-medium",
+    "audio-volume-low",
+    "audio-mute",
+    "media-playback-start",
+    "media-playback-pause",
+    "media-playback-stop",
+    "media-record",
+    "media-eject",
+    "media-optical",
+    "media-floppy",
+    "camera-photo",
+    "camera-web",
+    "video-display",
+    "video-x-generic",
+    "image-x-generic",
+    "image",
+    "folder-pictures",
+    "folder-music",
+    "folder-videos",
+    "folder-documents",
+    "folder-download",
+    "network-wired",
+    "network-wireless",
+    "network-offline",
+    "network-server",
+    "network-workgroup",
+    "network-transmit",
+    "browser",
+    "web-browser",
+    "mail-unread",
+    "mail-read",
+    "internet-mail",
+    "internet-news",
+    "internet-web-browser",
+    "weather-clear",
+    "weather-clouds",
+    "weather-rain",
+    "weather-snow",
+    "appointment",
+    "appointment-new",
+    "calendar",
+    "office-calendar",
+    "alarm",
+    "clock",
+    "stopwatch",
+    "tasks",
+    "battery",
+    "battery-full",
+    "battery-low",
+    "battery-caution",
+    "power",
+    "power-profile-balanced",
+    "power-profile-performance",
+    "help-about",
+    "help-contents",
+    "help-faq",
+    "dialog-information",
+    "dialog-warning",
+    "dialog-error",
+    "dialog-question",
+    "list-add",
+    "list-remove",
+    "view-refresh",
+    "view-fullscreen",
+    "window-close",
+    "window-new",
+    "window-duplicate",
+    "user",
+    "user-desktop",
+    "user-trash",
+    "user-trash-full",
+    "emblem-important",
+    "emblem-favorite",
+    "emblem-system",
+    "stock_lock",
+    "stock_lock-open",
+    "stock_save",
+    "stock_open",
+    "gnome-system-monitor",
+    "gnome-terminal",
+    "gnome-calculator",
+    "nemo",
+    "thunar",
+    "pcmanfm",
+    "nautilus",
+    "deepin-calculator",
+    "deepin-terminal",
+    "deepin-editor",
+    "dde-file-manager",
+    "dde-calendar",
+    "dde-dock",
 ]
 
 
@@ -140,7 +234,7 @@ class IconPickerDialog(QDialog):
         super().__init__(parent)
         self._selected_icon = current_icon
         self._selected_icon_path = None
-        self._accent_color = SystemInfo.get_accent_color()
+        self._accent_color = get_current_accent_color()
 
         self.setWindowTitle("选择图标")
         self.setWindowFlags(Qt.Dialog | Qt.WindowStaysOnTopHint)
@@ -170,7 +264,9 @@ class IconPickerDialog(QDialog):
                 if alpha < 128:
                     continue
 
-                brightness = 0.299 * pixel.red() + 0.587 * pixel.green() + 0.114 * pixel.blue()
+                brightness = (
+                    0.299 * pixel.red() + 0.587 * pixel.green() + 0.114 * pixel.blue()
+                )
                 total_brightness += brightness
                 pixel_count += 1
 
@@ -199,18 +295,24 @@ class IconPickerDialog(QDialog):
         current_layout.setContentsMargins(16, 12, 16, 12)
 
         current_label = QLabel("当前:")
-        current_label.setStyleSheet("color: #888888; font-size: 12px; background: transparent;")
+        current_label.setStyleSheet(
+            "color: #888888; font-size: 12px; background: transparent;"
+        )
         current_layout.addWidget(current_label)
 
         self._icon_name_label = QLabel(self._selected_icon or "未选择")
-        self._icon_name_label.setStyleSheet("color: #333333; font-size: 12px; background: transparent;")
+        self._icon_name_label.setStyleSheet(
+            "color: #333333; font-size: 12px; background: transparent;"
+        )
         current_layout.addWidget(self._icon_name_label)
         current_layout.addStretch()
 
         self._preview_label = QLabel()
         self._preview_label.setFixedSize(48, 48)
         self._preview_label.setAlignment(Qt.AlignCenter)
-        self._preview_label.setStyleSheet("background: #ffffff; border: 1px solid #e0e0e0; border-radius: 6px;")
+        self._preview_label.setStyleSheet(
+            "background: #ffffff; border: 1px solid #e0e0e0; border-radius: 6px;"
+        )
         current_layout.addWidget(self._preview_label)
         layout.addWidget(preview_container)
 
@@ -269,7 +371,9 @@ class IconPickerDialog(QDialog):
 
         search_layout = QHBoxLayout()
         search_label = QLabel("搜索:")
-        search_label.setStyleSheet("color: #666666; font-size: 13px; background: transparent;")
+        search_label.setStyleSheet(
+            "color: #666666; font-size: 13px; background: transparent;"
+        )
         search_layout.addWidget(search_label)
 
         self._search_input = QLineEdit()
@@ -314,7 +418,9 @@ class IconPickerDialog(QDialog):
         layout.addWidget(self._local_preview, alignment=Qt.AlignCenter)
 
         self._local_path_label = QLabel("未选择文件")
-        self._local_path_label.setStyleSheet("color: #888888; font-size: 11px; background: transparent;")
+        self._local_path_label.setStyleSheet(
+            "color: #888888; font-size: 11px; background: transparent;"
+        )
         self._local_path_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self._local_path_label)
 
@@ -362,7 +468,9 @@ class IconPickerDialog(QDialog):
             btn.setIconSize(QSize(24, 24))
             btn.setToolTip(icon_name)
             btn.setCheckable(True)
-            btn.clicked.connect(lambda checked, name=icon_name: self._select_preset_icon(name))
+            btn.clicked.connect(
+                lambda checked, name=icon_name: self._select_preset_icon(name)
+            )
 
             self._icon_grid.addWidget(btn, row, col)
             self._icon_buttons.append((icon_name, btn))
@@ -392,16 +500,22 @@ class IconPickerDialog(QDialog):
             self,
             "选择图标文件",
             "",
-            "图片文件 (*.png *.jpg *.jpeg *.svg *.ico);;所有文件 (*)"
+            "图片文件 (*.png *.jpg *.jpeg *.svg *.ico);;所有文件 (*)",
         )
 
         if file_path:
             pixmap = QPixmap(file_path)
             if not pixmap.isNull():
                 from PyQt5.QtWidgets import QApplication
+
                 app = QApplication.instance()
                 dpr = app.devicePixelRatio() if app else 1.0
-                scaled = pixmap.scaled(int(96 * dpr), int(96 * dpr), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                scaled = pixmap.scaled(
+                    int(96 * dpr),
+                    int(96 * dpr),
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation,
+                )
                 scaled.setDevicePixelRatio(dpr)
                 self._local_preview.setPixmap(scaled)
                 self._local_path_label.setText(file_path)
@@ -412,6 +526,7 @@ class IconPickerDialog(QDialog):
 
     def _update_preview(self):
         from PyQt5.QtWidgets import QApplication
+
         app = QApplication.instance()
         dpr = app.devicePixelRatio() if app else 1.0
 
@@ -427,7 +542,12 @@ class IconPickerDialog(QDialog):
         if self._selected_icon_path:
             pixmap = QPixmap(self._selected_icon_path)
             if not pixmap.isNull():
-                scaled = pixmap.scaled(int(40 * dpr), int(40 * dpr), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                scaled = pixmap.scaled(
+                    int(40 * dpr),
+                    int(40 * dpr),
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation,
+                )
                 scaled.setDevicePixelRatio(dpr)
                 self._preview_label.setPixmap(scaled)
                 self._icon_name_label.setText("自定义图标")
@@ -439,6 +559,7 @@ class IconPickerDialog(QDialog):
     def _on_ok(self):
         if self._selected_icon_path:
             from plugins.plugin_manager import PluginManager
+
             pm = PluginManager.get()
             saved_path = pm.save_custom_icon(self._selected_icon_path)
             if saved_path:

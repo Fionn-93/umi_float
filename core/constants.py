@@ -1,6 +1,7 @@
 """
 常量定义模块
 """
+
 import os
 from pathlib import Path
 

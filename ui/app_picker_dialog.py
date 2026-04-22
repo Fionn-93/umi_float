@@ -1,17 +1,26 @@
 """
 应用选择器对话框 - 从系统已安装应用中选择创建快捷方式
 """
+
 from typing import Optional, List
 
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QScrollArea, QFrame, QLineEdit, QGridLayout, QWidget
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QFrame,
+    QLineEdit,
+    QGridLayout,
+    QWidget,
 )
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from PyQt5.QtGui import QIcon, QPainter, QColor, QPen, QFontMetrics
 
 from utils.desktop_entry import get_desktop_entries, filter_entries, AppEntry
-from utils.system_info import SystemInfo
+from utils.theme_colors import get_current_accent_color
 
 
 class AppItemWidget(QWidget):
@@ -67,6 +76,7 @@ class AppItemWidget(QWidget):
         icon_name = self.entry.icon
         dpr = 1.0
         from PyQt5.QtWidgets import QApplication
+
         app = QApplication.instance()
         if app:
             dpr = app.devicePixelRatio()
@@ -188,7 +198,7 @@ class AppPickerDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._selected_entry: Optional[AppEntry] = None
-        self._accent_color = SystemInfo.get_accent_color()
+        self._accent_color = get_current_accent_color()
         self._all_entries: List[AppEntry] = []
         self._current_keyword = ""
         self._app_widgets: List = []
@@ -209,7 +219,9 @@ class AppPickerDialog(QDialog):
 
         search_layout = QHBoxLayout()
         search_label = QLabel("搜索:")
-        search_label.setStyleSheet("color: #666666; font-size: 13px; background: transparent;")
+        search_label.setStyleSheet(
+            "color: #666666; font-size: 13px; background: transparent;"
+        )
         search_layout.addWidget(search_label)
 
         self._search_input = QLineEdit()

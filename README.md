@@ -63,7 +63,7 @@ umi_float/
 │   ├── plugin_loader.py       # 插件加载器
 │   └── plugin_manager.py      # 插件管理器
 ├── utils/                     # 工具模块
-│   ├── system_info.py         # 系统信息
+│   ├── system_info.py         # 屏幕几何信息
 │   ├── theme_colors.py        # 主题色生成
 │   ├── memory_info.py         # 内存信息
 │   └── weather_info.py        # 天气信息

@@ -1,19 +1,32 @@
 """
 设置对话框 - 现代圆角卡片风格
 """
+
 import threading
 from PyQt5.QtWidgets import (
-    QDialog, QHBoxLayout, QVBoxLayout, QListWidget, QListWidgetItem,
-    QStackedWidget, QLabel, QSlider, QPushButton, QWidget,
-    QFrame, QScrollArea, QComboBox, QListView, QLineEdit,
-    QGraphicsOpacityEffect, QSizePolicy,
+    QDialog,
+    QHBoxLayout,
+    QVBoxLayout,
+    QListWidget,
+    QListWidgetItem,
+    QStackedWidget,
+    QLabel,
+    QSlider,
+    QPushButton,
+    QWidget,
+    QFrame,
+    QScrollArea,
+    QComboBox,
+    QListView,
+    QLineEdit,
+    QGraphicsOpacityEffect,
+    QSizePolicy,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPropertyAnimation
 from PyQt5.QtGui import QFont, QPalette, QColor
 
 from core.config import get_config
-from utils.theme_colors import get_all_themes, DEFAULT_THEME
-from utils.system_info import SystemInfo
+from utils.theme_colors import get_all_themes, get_current_accent_color, DEFAULT_THEME
 from utils.weather_info import fetch_weather, clear_weather_cache, lookup_city_by_coords
 from utils.ip_location import get_ip_location
 from plugins.plugin_manager import PluginManager
@@ -125,7 +138,9 @@ class LabeledSlider(QWidget):
         self.value_label = QLabel(display_text)
         self.value_label.setFixedWidth(48)
         self.value_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.value_label.setStyleSheet("color: #6b7280; font-size: 12px; background: transparent;")
+        self.value_label.setStyleSheet(
+            "color: #6b7280; font-size: 12px; background: transparent;"
+        )
         layout.addWidget(self.value_label)
 
         self.slider.valueChanged.connect(self._on_value_changed)
@@ -172,11 +187,13 @@ class SettingsDialog(QDialog):
         self.config = get_config()
         self._drag_pos = None
         self._is_dragging = False
-        self._accent_color = SystemInfo.get_accent_color()
+        self._accent_color = get_current_accent_color()
         self._animation = None
         self.setWindowTitle("设置")
         self.resize(860, 620)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog | Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(
+            Qt.FramelessWindowHint | Qt.Dialog | Qt.WindowStaysOnTopHint
+        )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self._init_ui()
         self.applyStyle()
@@ -486,12 +503,20 @@ class PersonalizePage(Page):
         c2 = Card("Float Ball")
         self.display_mode_combo = _make_combo(
             ["时钟", "性能", "天气"],
-            {"clock": 0, "performance": 1, "weather": 2}.get(cfg.get("display_mode", "clock"), 0),
+            {"clock": 0, "performance": 1, "weather": 2}.get(
+                cfg.get("display_mode", "clock"), 0
+            ),
         )
-        self.display_mode_combo.currentIndexChanged.connect(self._on_display_mode_changed)
-        c2.addRow(SettingRow("显示模式", self.display_mode_combo, "悬浮球显示的内容类型"))
+        self.display_mode_combo.currentIndexChanged.connect(
+            self._on_display_mode_changed
+        )
+        c2.addRow(
+            SettingRow("显示模式", self.display_mode_combo, "悬浮球显示的内容类型")
+        )
 
-        self.size_slider = LabeledSlider(32, 128, cfg.get("float_ball_size", 56), suffix=" px")
+        self.size_slider = LabeledSlider(
+            32, 128, cfg.get("float_ball_size", 56), suffix=" px"
+        )
         self.size_slider.value_changed.connect(self._on_size_changed)
         c2.addRow(SettingRow("大小", self.size_slider, "调整悬浮球尺寸"))
         self.body.addWidget(c2)
@@ -502,13 +527,19 @@ class PersonalizePage(Page):
             0 if cfg.get("pie_expand_mode", "click") == "click" else 1,
         )
         self.expand_mode_combo.currentIndexChanged.connect(self._on_expand_mode_changed)
-        c3.addRow(SettingRow("展开方式", self.expand_mode_combo, "选择展开面板的触发方式"))
+        c3.addRow(
+            SettingRow("展开方式", self.expand_mode_combo, "选择展开面板的触发方式")
+        )
 
-        self.pie_btn_slider = LabeledSlider(32, 100, cfg.get("pie_button_size", 56), suffix=" px")
+        self.pie_btn_slider = LabeledSlider(
+            32, 100, cfg.get("pie_button_size", 56), suffix=" px"
+        )
         self.pie_btn_slider.value_changed.connect(self._on_pie_btn_size_changed)
         c3.addRow(SettingRow("图标大小", self.pie_btn_slider, "面板中按钮图标的大小"))
 
-        self.spacing_slider = LabeledSlider(0, 30, cfg.get("pie_spacing", 10), suffix=" px")
+        self.spacing_slider = LabeledSlider(
+            0, 30, cfg.get("pie_spacing", 10), suffix=" px"
+        )
         self.spacing_slider.value_changed.connect(self._on_spacing_changed)
         c3.addRow(SettingRow("间距", self.spacing_slider, "面板按钮之间的间距"))
         self.body.addWidget(c3)
@@ -517,6 +548,8 @@ class PersonalizePage(Page):
         themes = get_all_themes()
         if 0 <= index < len(themes):
             self.config.update(theme=themes[index][0])
+            self.dialog._accent_color = get_current_accent_color()
+            self.dialog.applyStyle()
             self.dialog.settings_changed.emit("float_ball")
 
     def _on_display_mode_changed(self, index):
@@ -555,6 +588,7 @@ class WeatherPage(Page):
 
     def _build_ui(self):
         from widgets.toast import ToastWidget
+
         cfg = self.config.get()
 
         self.toast = ToastWidget.get_instance(self)
@@ -564,7 +598,9 @@ class WeatherPage(Page):
         self.api_host_input.setPlaceholderText("输入和风天气 API 地址")
         self.api_host_input.setText(cfg.get("weather_api_host", ""))
         self.api_host_input.editingFinished.connect(self._on_api_host_changed)
-        c1.addRow(SettingRow("API 地址", self.api_host_input, "和风天气服务的 API 端点地址"))
+        c1.addRow(
+            SettingRow("API 地址", self.api_host_input, "和风天气服务的 API 端点地址")
+        )
 
         self.api_key_input = QLineEdit()
         self.api_key_input.setPlaceholderText("输入和风天气 API Key")
@@ -628,7 +664,9 @@ class WeatherPage(Page):
         def do_test():
             result = fetch_weather(api_key, location, api_host)
             if result is not None:
-                msg = f"连接成功：{result.get('text', '')}, {result.get('temp', '--')}°C"
+                msg = (
+                    f"连接成功：{result.get('text', '')}, {result.get('temp', '--')}°C"
+                )
                 self.test_finished.emit(True, msg)
             else:
                 self.test_finished.emit(False, "连接失败，请检查配置")
@@ -652,6 +690,7 @@ class WeatherPage(Page):
 
     def _on_locate_clicked(self):
         import logging
+
         logger = logging.getLogger(__name__)
         api_key = self.api_key_input.text().strip()
         if not api_key:
@@ -678,7 +717,9 @@ class WeatherPage(Page):
                     ip_info.get("city", ""), ip_info.get("region", "")
                 )
             if location_id is None:
-                logger.warning("自动定位失败: 未找到 %s 对应的城市", ip_info.get("city"))
+                logger.warning(
+                    "自动定位失败: 未找到 %s 对应的城市", ip_info.get("city")
+                )
                 self.locate_finished.emit(False, f"未找到 {ip_info['city']} 对应的城市")
                 return
             logger.info("自动定位成功: location_id=%s", location_id)
@@ -797,12 +838,15 @@ class ExtensionsPage(Page):
         )
         if dialog.exec_() == QDialog.Accepted:
             data = dialog.get_data()
-            pm.update_plugin_override(plugin_id, {
-                "name": data["name"],
-                "description": data["description"],
-                "icon": data["icon"],
-                "exec": data["exec"],
-            })
+            pm.update_plugin_override(
+                plugin_id,
+                {
+                    "name": data["name"],
+                    "description": data["description"],
+                    "icon": data["icon"],
+                    "exec": data["exec"],
+                },
+            )
             self._refresh_list()
             self.dialog.settings_changed.emit("pie_panel")
 

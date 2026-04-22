@@ -6,6 +6,7 @@
 用法: python3 scripts/gen_location_data.py
 输出: data/qweather_china.json
 """
+
 import csv
 import json
 import urllib.request

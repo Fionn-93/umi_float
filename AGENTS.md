@@ -21,7 +21,7 @@ No CI, no pre-commit hooks, no task runner scripts. `tests/` contains only `__in
 
 ## Platform
 
-**Deepin/UOS Linux only.** Extensions shell out to Deepin apps (`deepin-calculator`, `dde-file-manager`, etc.). Screenshot extension uses `qdbus com.deepin.Screenshot`. `utils/system_info.py` calls `org.deepin.dde.Display1` and `org.deepin.dde.Appearance1` over DBus. System tray uses `QSystemTrayIcon` (may need `libayatana-appindicator3`).
+**Deepin/UOS Linux only.** Extensions shell out to Deepin apps (`deepin-calculator`, `dde-file-manager`, etc.). Screenshot extension uses `qdbus com.deepin.Screenshot`. `utils/system_info.py` calls `org.deepin.dde.Display1` over DBus. System tray uses `QSystemTrayIcon` (may need `libayatana-appindicator3`).
 
 ## Architecture
 
@@ -122,7 +122,7 @@ Icons starting with `icons/` are custom icons saved to `DATA_DIR`. System icons 
 
 All UI styling decisions follow `DESIGN.md` at project root. Key points:
 
-- Accent color: `SystemInfo.get_accent_color()` (DBus → `org.deepin.dde.Appearance1`, property `QtActiveColor`). Must use `iface.call("Get", ...)` — direct `iface.property()` returns `None`.
+- Accent color: `get_current_accent_color()` (reads app theme from ConfigManager → `theme_from_key`). All UI uses the same app theme; system accent color is no longer used.
 - Each dialog/page defines a `get_xxx_style(accent_color)` function for its stylesheet.
 - `MidHeader` (group title) has built-in `padding: 20px 0 8px 4px` — set containing layout spacing to `0`, not `12`.
 - Page title: 16px Bold, color `#1d1d1f`.
