@@ -5,7 +5,7 @@ Umi-Float 主入口
 
 import logging
 import sys
-from PyQt5.QtWidgets import QApplication, QMenu, QAction, QDialog
+from PyQt5.QtWidgets import QApplication, QMenu, QAction, QActionGroup, QDialog
 from PyQt5.QtCore import QTimer, QPoint
 from PyQt5.QtGui import QIcon
 
@@ -242,6 +242,20 @@ class Application:
         settings_action.triggered.connect(self._show_settings)
         menu.addAction(settings_action)
         menu.addSeparator()
+        display_submenu = QMenu("显示模式", menu)
+        mode_group = QActionGroup(display_submenu)
+        mode_group.setExclusive(True)
+        current_mode = self.config.get()["display_mode"]
+        for label, key in [("时钟", "clock"), ("性能", "performance"), ("天气", "weather")]:
+            action = QAction(label, display_submenu)
+            action.setCheckable(True)
+            action.setChecked(key == current_mode)
+            action.setData(key)
+            display_submenu.addAction(action)
+            mode_group.addAction(action)
+        display_submenu.triggered.connect(self._switch_display_mode)
+        menu.addMenu(display_submenu)
+        menu.addSeparator()
         restart_action = QAction("重启", self.app)
         restart_action.triggered.connect(self._restart)
         menu.addAction(restart_action)
@@ -254,6 +268,12 @@ class Application:
             from PyQt5.QtGui import QCursor
 
             menu.exec_(QCursor.pos())
+
+    def _switch_display_mode(self, action):
+        mode = action.data()
+        if mode and mode != self.config.get()["display_mode"]:
+            self.config.update(display_mode=mode)
+            self.float_widget.apply_settings()
 
     def _on_plugin_edit(self, plugin_id: str):
         """从面板右键编辑插件"""

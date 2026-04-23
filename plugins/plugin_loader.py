@@ -311,15 +311,52 @@ class PluginLoader(QObject):
 
         config = self._get_effective_config(plugin_id)
         try:
-            subprocess.Popen(
-                config.exec,
-                shell=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            print(f"执行插件: {config.name}")
+            if config.type == "python":
+                self._execute_python_plugin(plugin_id, config)
+            else:
+                subprocess.Popen(
+                    config.exec,
+                    shell=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                print(f"执行插件: {config.name}")
         except Exception as e:
             print(f"执行插件失败: {e}")
+
+    def _execute_python_plugin(self, plugin_id: str, config):
+        """执行 Python 类型插件（进程内）"""
+        plugin_path = self._plugin_paths.get(plugin_id)
+        if plugin_path is None:
+            print(f"插件路径不存在: {plugin_id}")
+            return
+
+        script_file = plugin_path / f"{config.exec}.py"
+        if not script_file.exists():
+            print(f"插件脚本不存在: {script_file}")
+            return
+
+        try:
+            import importlib.util
+
+            spec = importlib.util.spec_from_file_location(
+                f"ext_{plugin_id}", str(script_file)
+            )
+            if spec is None or spec.loader is None:
+                print(f"无法加载插件模块: {script_file}")
+                return
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            if not hasattr(module, "run"):
+                print(f"插件缺少 run() 函数: {script_file}")
+                return
+            from PyQt5.QtWidgets import QApplication
+
+            app = QApplication.instance()
+            module.run({"app": app})
+            print(f"执行 Python 插件: {config.name}")
+        except Exception as e:
+            print(f"执行 Python 插件失败: {e}")
 
     def save_custom_icon(self, source_path: str) -> str:
         """保存自定义图标，返回相对路径"""

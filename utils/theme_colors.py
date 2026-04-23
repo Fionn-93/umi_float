@@ -7,23 +7,19 @@ from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt
 
 PRESET_THEMES = {
-    # 经典/原生类
-    "deepin": {"name": "Deepin (默认)", "color": "#2CA7E8"},
-    "macos": {"name": "macOS Blue", "color": "#007AFF"},
-    "github": {"name": "GitHub Green", "color": "#2EA44F"},
-    # 现代感/清新类
     "lavender": {"name": "薰衣草紫", "color": "#7B61FF"},
     "coral": {"name": "珊瑚红", "color": "#FF6B6B"},
-    "forest": {"name": "森林绿", "color": "#4CAF50"},
     "sunset": {"name": "夕阳橙", "color": "#FF9F43"},
     "rose": {"name": "玫瑰粉", "color": "#FF85A2"},
-    # 沉稳/工具类
-    "steam": {"name": "Steam Dark", "color": "#1B2838"},
-    "spotify": {"name": "Spotify Green", "color": "#1DB954"},
-    "nvidia": {"name": "NVIDIA Green", "color": "#76B900"},
+    "forest": {"name": "森林绿", "color": "#4CAF50"},
+    "matcha": {"name": "抹茶绿", "color": "#8BC34A"},
+    "azure": {"name": "蔚蓝", "color": "#4FC3F7"},
+    "indigo": {"name": "靛蓝", "color": "#5C6BC0"},
+    "pearl": {"name": "珍珠白", "color": "#F5F5F7"},
+    "ebony": {"name": "乌木黑", "color": "#2C2C2E"},
 }
 
-DEFAULT_THEME = "deepin"
+DEFAULT_THEME = "lavender"
 
 
 def get_theme_color(theme_key: str) -> str:
@@ -83,7 +79,10 @@ def derive_theme(primary: QColor) -> dict:
     float_bg.setAlpha(242)
 
     # 悬浮球文字: 根据明度选择白或深色
-    if v > 128:
+    # 对于低饱和度的中性色（如 pearl/ebony），直接按 value 判断
+    if s < 20:
+        float_text = QColor(30, 30, 30) if v > 180 else QColor(255, 255, 255)
+    elif v > 128:
         float_text = QColor(255, 255, 255)
     else:
         float_text = QColor(30, 30, 30)

@@ -1,0 +1,8 @@
+{
+  "name": "文本编辑器",
+  "description": "简单好用的文本编辑器",
+  "icon": "deepin-editor",
+  "exec": "/usr/bin/ll-cli run org.deepin.editor --file %F -- -- deepin-editor %%F",
+  "type": "command",
+  "enabled": true
+}
