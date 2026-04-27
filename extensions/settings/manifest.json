@@ -1,8 +1,0 @@
-{
-  "name": "深度控制中心",
-  "description": "深度桌面环境控制中心",
-  "icon": "preferences-system",
-  "exec": "dde-control-center --show",
-  "type": "command",
-  "enabled": true
-}

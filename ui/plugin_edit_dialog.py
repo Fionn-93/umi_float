@@ -235,11 +235,11 @@ class PluginEditDialog(QDialog):
         dpr = app.devicePixelRatio() if app else 1.0
 
         if icon_name.startswith("icons/"):
-            from core.constants import DATA_DIR
+            from plugins.plugin_manager import PluginManager
 
-            icon_path = DATA_DIR / icon_name
-            if icon_path.exists():
-                pixmap = QPixmap(str(icon_path))
+            icon = PluginManager.get().resolve_icon(icon_name, plugin_id)
+            if icon and not icon.isNull():
+                pixmap = icon.pixmap(int(28 * dpr), int(28 * dpr))
                 if not pixmap.isNull():
                     scaled = pixmap.scaled(
                         int(28 * dpr),

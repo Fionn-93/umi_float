@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt5.QtGui import QIcon
 
 from core.constants import (
     EXTENSIONS_DIR,
@@ -111,6 +112,21 @@ class PluginLoader(QObject):
             return True
         except ValueError:
             return False
+
+    def resolve_icon(self, icon_name: str, plugin_id: str = None) -> Optional[QIcon]:
+        """解析图标名称，返回 QIcon 或 None（fallback 到调用方处理）"""
+        from PyQt5.QtGui import QIcon
+
+        if not icon_name.startswith("icons/"):
+            return None
+        if plugin_id and plugin_id in self._plugin_paths:
+            plugin_icon = self._plugin_paths[plugin_id] / icon_name
+            if plugin_icon.exists():
+                return QIcon(str(plugin_icon))
+        global_icon = ICONS_DIR / icon_name
+        if global_icon.exists():
+            return QIcon(str(global_icon))
+        return None
 
     def get_ordered_plugins(
         self,
@@ -234,7 +250,12 @@ class PluginLoader(QObject):
         self.plugin_changed.emit(plugin_id)
 
     def create_plugin(
-        self, name: str, description: str, icon: str, exec_cmd: str
+        self,
+        name: str,
+        description: str,
+        icon: str,
+        exec_cmd: str,
+        plugin_type: str = "command",
     ) -> str:
         """创建新插件，返回 plugin_id"""
         plugin_id = str(uuid.uuid4())
@@ -246,7 +267,7 @@ class PluginLoader(QObject):
             "description": description,
             "icon": icon,
             "exec": exec_cmd,
-            "type": "command",
+            "type": plugin_type,
             "enabled": True,
         }
 
@@ -265,6 +286,84 @@ class PluginLoader(QObject):
 
         self.plugin_changed.emit(plugin_id)
         return plugin_id
+
+    def install_plugin(self, zip_path: str) -> Tuple[bool, str, str]:
+        """安装 widget 插件包，返回 (成功, 消息, plugin_id)"""
+        import zipfile
+
+        zip_file = Path(zip_path)
+        if not zip_file.exists():
+            return False, "文件不存在", ""
+
+        try:
+            with zipfile.ZipFile(zip_file, "r") as z:
+                if "manifest.json" not in z.namelist():
+                    return False, "不是有效的插件包：缺少 manifest.json", ""
+                manifest_data = json.loads(z.read("manifest.json").decode("utf-8"))
+            plugin_type = manifest_data.get("type", "command")
+            if plugin_type != "widget":
+                return False, "只有 widget 类型插件支持导入安装", ""
+            plugin_id = str(uuid.uuid4())
+            plugin_dir = EXTENSIONS_DIR / plugin_id
+            plugin_dir.mkdir(parents=True, exist_ok=True)
+            data_dir = plugin_dir / "data"
+            data_dir.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(zip_file, "r") as z:
+                z.extractall(plugin_dir)
+            config = PluginConfig(manifest_data)
+            self._plugins[plugin_id] = config
+            self._plugin_paths[plugin_id] = plugin_dir
+            cfg = self._config.get()
+            enabled = list(cfg.get("enabled_plugins", []))
+            enabled.append(plugin_id)
+            self._config.update(enabled_plugins=enabled)
+            self.plugin_changed.emit(plugin_id)
+            return True, "安装成功", plugin_id
+        except Exception as e:
+            return False, f"安装失败: {e}", ""
+
+    def get_plugin_data_dir(self, plugin_id: str) -> Optional[Path]:
+        """获取插件数据目录"""
+        plugin_path = self._plugin_paths.get(plugin_id)
+        if plugin_path is None:
+            return None
+        data_dir = plugin_path / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        return data_dir
+
+    def get_widget_class(self, plugin_id: str):
+        """获取 widget 插件的 Widget 类"""
+        plugin_path = self._plugin_paths.get(plugin_id)
+        if plugin_path is None:
+            return None
+        config = self._get_effective_config(plugin_id)
+        if config is None or config.type != "widget":
+            return None
+        exec_name = config.exec
+        init_file = plugin_path / exec_name
+        if not init_file.exists():
+            return None
+        if init_file.is_dir():
+            init_file = init_file / "__init__.py"
+            if not init_file.exists():
+                return None
+        try:
+            import importlib.util
+
+            spec = importlib.util.spec_from_file_location(
+                f"w_{plugin_id}", str(init_file)
+            )
+            if spec is None or spec.loader is None:
+                return None
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            entry_func = getattr(module, config.entry, None)
+            if entry_func is None:
+                return None
+            return entry_func
+        except Exception as e:
+            print(f"加载 widget 类失败: {e}")
+            return None
 
     def delete_plugin(self, plugin_id: str) -> bool:
         """删除插件"""
@@ -304,12 +403,14 @@ class PluginLoader(QObject):
         return True
 
     def execute_plugin(self, plugin_id: str):
-        """执行插件（非阻塞）"""
+        """执行插件（非阻塞），返回 (类型, command_exec 或 widget_class)"""
         if plugin_id not in self._plugins:
             print(f"插件不存在: {plugin_id}")
-            return
+            return ("none", None)
 
         config = self._get_effective_config(plugin_id)
+        if config.type == "widget":
+            return ("widget", plugin_id)
         try:
             if config.type == "python":
                 self._execute_python_plugin(plugin_id, config)
@@ -321,8 +422,10 @@ class PluginLoader(QObject):
                     stderr=subprocess.DEVNULL,
                 )
                 print(f"执行插件: {config.name}")
+            return ("command", config.exec)
         except Exception as e:
             print(f"执行插件失败: {e}")
+            return ("none", None)
 
     def _execute_python_plugin(self, plugin_id: str, config):
         """执行 Python 类型插件（进程内）"""

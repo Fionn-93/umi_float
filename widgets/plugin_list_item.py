@@ -18,11 +18,19 @@ class PluginListItem(QFrame):
 
     MIME_TYPE = "application/x-plugin-id"
 
-    def __init__(self, plugin_id: str, name: str, icon_name: str, parent=None):
+    def __init__(
+        self,
+        plugin_id: str,
+        name: str,
+        icon_name: str,
+        plugin_type: str = "command",
+        parent=None,
+    ):
         super().__init__(parent)
         self.plugin_id = plugin_id
         self._name = name
         self._icon_name = icon_name
+        self._plugin_type = plugin_type
         self._drag_start_pos = None
 
         self.setFixedHeight(52)
@@ -59,25 +67,40 @@ class PluginListItem(QFrame):
         )
         layout.addWidget(name_label, 1)
 
+        self._can_edit = self._plugin_type != "widget"
         edit_btn = QPushButton("编辑")
         edit_btn.setFixedSize(56, 30)
-        edit_btn.setCursor(Qt.PointingHandCursor)
-        edit_btn.clicked.connect(lambda: self.edit_requested.emit(self.plugin_id))
-        edit_btn.setStyleSheet("""
-            QPushButton {
-                background: #ffffff;
-                border: 1px solid #d1d5db;
-                border-radius: 6px;
-                color: #374151;
-                font-size: 13px;
-                height: 30px;
-                padding: 0 8px;
-            }
-            QPushButton:hover {
-                background: #f3f4f6;
-                border-color: #9ca3af;
-            }
-        """)
+        if self._can_edit:
+            edit_btn.setCursor(Qt.PointingHandCursor)
+            edit_btn.clicked.connect(lambda: self.edit_requested.emit(self.plugin_id))
+            edit_btn.setStyleSheet("""
+                QPushButton {
+                    background: #ffffff;
+                    border: 1px solid #d1d5db;
+                    border-radius: 6px;
+                    color: #374151;
+                    font-size: 13px;
+                    height: 30px;
+                    padding: 0 8px;
+                }
+                QPushButton:hover {
+                    background: #f3f4f6;
+                    border-color: #9ca3af;
+                }
+            """)
+        else:
+            edit_btn.setEnabled(False)
+            edit_btn.setStyleSheet("""
+                QPushButton {
+                    background: #f3f4f6;
+                    border: 1px solid #d1d5db;
+                    border-radius: 6px;
+                    color: #9ca3af;
+                    font-size: 13px;
+                    height: 30px;
+                    padding: 0 8px;
+                }
+            """)
         layout.addWidget(edit_btn)
 
         delete_btn = QPushButton("删除")
@@ -115,9 +138,11 @@ class PluginListItem(QFrame):
 
     def _load_icon(self) -> QIcon:
         if self._icon_name.startswith("icons/"):
-            icon_path = DATA_DIR / self._icon_name
-            if icon_path.exists():
-                return QIcon(str(icon_path))
+            from plugins.plugin_manager import PluginManager
+
+            icon = PluginManager.get().resolve_icon(self._icon_name, self.plugin_id)
+            if icon:
+                return icon
 
         icon = QIcon.fromTheme(self._icon_name)
         if not icon.isNull():

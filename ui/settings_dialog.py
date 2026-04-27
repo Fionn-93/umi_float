@@ -22,6 +22,8 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QGraphicsOpacityEffect,
     QSizePolicy,
+    QFileDialog,
+    QMessageBox,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPropertyAnimation, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor
@@ -778,6 +780,13 @@ class ExtensionsPage(Page):
         shortcut_btn.clicked.connect(self._on_new_shortcut)
         self.title_actions.addWidget(shortcut_btn)
 
+        import_btn = QPushButton("导入插件包")
+        import_btn.setObjectName("actionBtn")
+        import_btn.setCursor(Qt.PointingHandCursor)
+        import_btn.setMinimumWidth(108)
+        import_btn.clicked.connect(self._on_import_plugin)
+        self.title_actions.addWidget(import_btn)
+
         scroll = DropForwardScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
@@ -883,3 +892,18 @@ class ExtensionsPage(Page):
             pm.delete_plugin(plugin_id)
             self._refresh_list()
             self.dialog.settings_changed.emit("pie_panel")
+
+    def _on_import_plugin(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "选择插件包", "", "插件包 (*.zip);;所有文件 (*)"
+        )
+        if not file_path:
+            return
+        pm = PluginManager.get()
+        success, msg, plugin_id = pm.install_plugin(file_path)
+        if success:
+            self._refresh_list()
+            self.dialog.settings_changed.emit("pie_panel")
+            QMessageBox.information(self, "安装成功", f'插件 "{msg}" 已安装')
+        else:
+            QMessageBox.warning(self, "安装失败", msg)

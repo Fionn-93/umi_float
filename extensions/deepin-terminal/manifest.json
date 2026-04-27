@@ -1,8 +1,0 @@
-{
-  "name": "深度终端",
-  "description": "使用命令行",
-  "icon": "deepin-terminal",
-  "exec": "deepin-terminal",
-  "type": "command",
-  "enabled": true
-}

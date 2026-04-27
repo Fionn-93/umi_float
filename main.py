@@ -21,6 +21,7 @@ from widgets.location_selector import lookup_city_id_by_name
 from ui.float_widget import FloatWidget
 from ui.tray_icon import TrayIcon
 from ui.pie_panel import PiePanel
+from ui.plugin_panel import PluginPanel
 from ui.settings_dialog import SettingsDialog
 from ui.plugin_edit_dialog import PluginEditDialog
 from plugins.plugin_manager import PluginManager
@@ -41,6 +42,10 @@ class Application:
         self.config = get_config()
         self.state = get_state()
         self.plugin_manager = PluginManager()
+
+        from utils.clipboard_watcher import ClipboardWatcher
+
+        ClipboardWatcher.get()
 
         self._try_auto_locate()
 
@@ -97,6 +102,7 @@ class Application:
         """初始化UI"""
         self.float_widget = FloatWidget()
         self.drawer_panel = PiePanel()
+        self.plugin_panel = PluginPanel()
         self.tray_icon = TrayIcon()
         self.settings_dialog = None
 
@@ -115,6 +121,8 @@ class Application:
         self.drawer_panel.show_menu.connect(self._show_context_menu)
         self.drawer_panel.plugin_edit_requested.connect(self._on_plugin_edit)
         self.drawer_panel.plugin_disable_requested.connect(self._on_plugin_disable)
+
+        self.plugin_panel.closed.connect(self._on_plugin_panel_closed)
 
         # 加载插件到面板
         self.plugin_manager.initialize()
@@ -246,7 +254,11 @@ class Application:
         mode_group = QActionGroup(display_submenu)
         mode_group.setExclusive(True)
         current_mode = self.config.get()["display_mode"]
-        for label, key in [("时钟", "clock"), ("性能", "performance"), ("天气", "weather")]:
+        for label, key in [
+            ("时钟", "clock"),
+            ("性能", "performance"),
+            ("天气", "weather"),
+        ]:
             action = QAction(label, display_submenu)
             action.setCheckable(True)
             action.setChecked(key == current_mode)
@@ -323,8 +335,39 @@ class Application:
 
     def _execute_plugin(self, plugin_id: str):
         """执行插件"""
-        self.plugin_manager.execute_plugin(plugin_id)
+        ptype, pdata = self.plugin_manager.execute_plugin(plugin_id)
+        if ptype == "widget":
+            self._show_widget_panel(plugin_id)
+        elif ptype == "command":
+            self.drawer_panel.hide_panel()
+
+    def _show_widget_panel(self, plugin_id: str):
+        """显示 widget 插件面板"""
+        widget_class = self.plugin_manager.get_widget_class(plugin_id)
+        if widget_class is None:
+            print(f"无法加载 widget 插件: {plugin_id}")
+            return
+        plugins = self.plugin_manager.get_plugins()
+        config = plugins.get(plugin_id)
+        if config is None:
+            return
+        data_dir = self.plugin_manager.get_plugin_data_dir(plugin_id)
+        from utils.theme_colors import get_current_accent_color
+        from PyQt5.QtWidgets import QApplication
+
+        host_info = {
+            "name": config.name,
+            "accent_color": get_current_accent_color(),
+            "data_dir": data_dir,
+            "app": QApplication.instance(),
+        }
         self.drawer_panel.hide_panel()
+        self.plugin_panel.set_plugin(plugin_id, widget_class, host_info)
+        self.plugin_panel.show_panel(self.float_widget)
+
+    def _on_plugin_panel_closed(self):
+        """插件面板关闭后恢复浮球"""
+        self.float_widget.show()
 
     def run(self):
         """运行应用"""

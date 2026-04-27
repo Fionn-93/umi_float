@@ -188,7 +188,7 @@ class PluginListWidget(QWidget):
         self._items.clear()
 
         for plugin_id, config in enabled:
-            item = PluginListItem(plugin_id, config.name, config.icon)
+            item = PluginListItem(plugin_id, config.name, config.icon, config.type)
             item.edit_requested.connect(self.edit_requested.emit)
             item.delete_requested.connect(self.delete_requested.emit)
             item.drag_started.connect(self._on_drag_started)
@@ -196,7 +196,7 @@ class PluginListWidget(QWidget):
             self._items.append((plugin_id, item))
 
         for plugin_id, config in disabled:
-            item = PluginListItem(plugin_id, config.name, config.icon)
+            item = PluginListItem(plugin_id, config.name, config.icon, config.type)
             item.edit_requested.connect(self.edit_requested.emit)
             item.delete_requested.connect(self.delete_requested.emit)
             item.drag_started.connect(self._on_drag_started)

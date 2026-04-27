@@ -1,8 +1,0 @@
-{
-  "name": "深度文件管理器",
-  "description": "浏览文件系统",
-  "icon": "dde-file-manager",
-  "exec": "/usr/bin/dde-file-manager -n",
-  "type": "command",
-  "enabled": true
-}

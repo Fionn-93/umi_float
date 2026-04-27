@@ -1,8 +1,0 @@
-{
-  "name": "深度系统监视器",
-  "description": "监控系统进程状态",
-  "icon": "deepin-system-monitor",
-  "exec": "deepin-system-monitor",
-  "type": "command",
-  "enabled": true
-}

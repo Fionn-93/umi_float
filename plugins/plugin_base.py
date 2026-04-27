@@ -33,8 +33,16 @@ class PluginConfig:
         return self.data.get("enabled", True)
 
     @property
+    def version(self) -> str:
+        return self.data.get("version", "1.0.0")
+
+    @property
     def description(self) -> str:
         return self.data.get("description", "")
+
+    @property
+    def entry(self) -> str:
+        return self.data.get("entry", "create_widget")
 
 
 class Plugin(ABC):

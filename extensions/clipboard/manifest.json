@@ -1,0 +1,10 @@
+{
+  "name": "剪切板历史",
+  "description": "记录复制和剪切的文本历史",
+  "icon": "icons/clipboard.svg",
+  "exec": "clipboard",
+  "type": "widget",
+  "version": "1.0.0",
+  "entry": "create_widget",
+  "enabled": true
+}

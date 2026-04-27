@@ -67,9 +67,9 @@ class PieButton(QLabel):
 
         icon = None
         if icon_name.startswith("icons/"):
-            icon_path = DATA_DIR / icon_name
-            if icon_path.exists():
-                icon = QIcon(str(icon_path))
+            from plugins.plugin_manager import PluginManager
+
+            icon = PluginManager.get().resolve_icon(icon_name, plugin_id)
 
         if icon is None or icon.isNull():
             icon = QIcon.fromTheme(icon_name)
