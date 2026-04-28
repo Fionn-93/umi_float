@@ -362,8 +362,46 @@ class Application:
             "app": QApplication.instance(),
         }
         self.drawer_panel.hide_panel()
-        self.plugin_panel.set_plugin(plugin_id, widget_class, host_info)
-        self.plugin_panel.show_panel(self.float_widget)
+
+        if config.window_mode == "independent":
+            self._show_independent_widget(plugin_id, widget_class, host_info)
+        else:
+            self.plugin_panel.set_plugin(plugin_id, widget_class, host_info)
+            self.plugin_panel.show_panel(self.float_widget)
+
+    def _show_independent_widget(self, plugin_id: str, widget_class, host_info: dict):
+        """以独立窗口方式显示 widget 插件"""
+        self._independent_widget = widget_class(host_info)
+        self._independent_widget.closed.connect(self._on_independent_widget_closed)
+
+        anchor = self.float_widget
+        anchor_pos = anchor.mapToGlobal(QPoint(0, 0))
+        anchor_size = anchor.size()
+        screen = anchor.screen()
+        screen_rect = screen.availableGeometry()
+
+        x = anchor_pos.x() + anchor_size.width() + 16
+        y = anchor_pos.y()
+        if x + self._independent_widget.width() > screen_rect.right():
+            x = anchor_pos.x() - self._independent_widget.width() - 16
+        if y + self._independent_widget.height() > screen_rect.bottom():
+            y = screen_rect.bottom() - self._independent_widget.height()
+        if x < screen_rect.left():
+            x = screen_rect.left()
+        if y < screen_rect.top():
+            y = screen_rect.top()
+
+        self.float_widget.hide()
+        self._independent_widget.move(x, y)
+        self._independent_widget.show()
+        self._independent_widget.raise_()
+
+    def _on_independent_widget_closed(self):
+        """独立 widget 关闭后恢复浮球"""
+        if hasattr(self, "_independent_widget") and self._independent_widget:
+            self._independent_widget.deleteLater()
+            self._independent_widget = None
+        self.float_widget.show()
 
     def _on_plugin_panel_closed(self):
         """插件面板关闭后恢复浮球"""

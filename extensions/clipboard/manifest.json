@@ -6,5 +6,6 @@
   "type": "widget",
   "version": "1.0.0",
   "entry": "create_widget",
+  "window_mode": "independent",
   "enabled": true
 }

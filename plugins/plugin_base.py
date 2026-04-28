@@ -44,6 +44,10 @@ class PluginConfig:
     def entry(self) -> str:
         return self.data.get("entry", "create_widget")
 
+    @property
+    def window_mode(self) -> str:
+        return self.data.get("window_mode", "embedded")
+
 
 class Plugin(ABC):
     """插件基类"""
