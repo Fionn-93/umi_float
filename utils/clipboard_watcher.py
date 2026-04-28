@@ -138,13 +138,19 @@ class ClipboardWatcher:
         conn.commit()
         conn.close()
 
-    def get_history(self, limit: int = 100):
+    def get_history(self, limit: int = 100, content_type: str = "all"):
         conn = sqlite3.connect(str(self._db_path))
         c = conn.cursor()
-        c.execute(
-            "SELECT id, content, content_type, created_at FROM clipboard_history ORDER BY created_at DESC LIMIT ?",
-            (limit,),
-        )
+        if content_type != "all" and content_type in ("text", "image", "file", "url"):
+            c.execute(
+                "SELECT id, content, content_type, created_at FROM clipboard_history WHERE content_type = ? ORDER BY created_at DESC LIMIT ?",
+                (content_type, limit),
+            )
+        else:
+            c.execute(
+                "SELECT id, content, content_type, created_at FROM clipboard_history ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            )
         rows = c.fetchall()
         conn.close()
         return rows

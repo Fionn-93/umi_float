@@ -10,6 +10,11 @@ from PyQt5.QtCore import QTimer, QPoint
 from PyQt5.QtGui import QIcon
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 from core.config import get_config
 from core.state import get_state
@@ -335,7 +340,9 @@ class Application:
 
     def _execute_plugin(self, plugin_id: str):
         """执行插件"""
+        logger.info("执行插件: plugin_id=%s", plugin_id)
         ptype, pdata = self.plugin_manager.execute_plugin(plugin_id)
+        logger.info("插件类型: %s, data: %s", ptype, pdata)
         if ptype == "widget":
             self._show_widget_panel(plugin_id)
         elif ptype == "command":
@@ -343,13 +350,15 @@ class Application:
 
     def _show_widget_panel(self, plugin_id: str):
         """显示 widget 插件面板"""
+        logger.info("_show_widget_panel: plugin_id=%s", plugin_id)
         widget_class = self.plugin_manager.get_widget_class(plugin_id)
         if widget_class is None:
-            print(f"无法加载 widget 插件: {plugin_id}")
+            logger.warning("_show_widget_panel: widget_class 为 None, plugin_id=%s", plugin_id)
             return
         plugins = self.plugin_manager.get_plugins()
         config = plugins.get(plugin_id)
         if config is None:
+            logger.warning("_show_widget_panel: config 为 None, plugin_id=%s", plugin_id)
             return
         data_dir = self.plugin_manager.get_plugin_data_dir(plugin_id)
         from utils.theme_colors import get_current_accent_color
@@ -361,6 +370,7 @@ class Application:
             "data_dir": data_dir,
             "app": QApplication.instance(),
         }
+        logger.info("_show_widget_panel: 显示 widget, name=%s, mode=%s", config.name, config.window_mode)
         self.drawer_panel.hide_panel()
 
         if config.window_mode == "independent":
@@ -371,7 +381,13 @@ class Application:
 
     def _show_independent_widget(self, plugin_id: str, widget_class, host_info: dict):
         """以独立窗口方式显示 widget 插件"""
-        self._independent_widget = widget_class(host_info)
+        logger.info("_show_independent_widget: plugin_id=%s", plugin_id)
+        try:
+            self._independent_widget = widget_class(host_info)
+            logger.info("_show_independent_widget: widget 构造成功")
+        except Exception as e:
+            logger.error("_show_independent_widget: widget 构造异常: %s", e)
+            return
         self._independent_widget.closed.connect(self._on_independent_widget_closed)
 
         anchor = self.float_widget
@@ -391,6 +407,10 @@ class Application:
         if y < screen_rect.top():
             y = screen_rect.top()
 
+        logger.info(
+            "_show_independent_widget: 显示 widget, pos=(%d,%d), size=%dx%d, screen=%s",
+            x, y, self._independent_widget.width(), self._independent_widget.height(), screen_rect,
+        )
         self.float_widget.hide()
         self._independent_widget.move(x, y)
         self._independent_widget.show()
@@ -399,6 +419,7 @@ class Application:
 
     def _on_independent_widget_closed(self):
         """独立 widget 关闭后恢复浮球"""
+        logger.info("_on_independent_widget_closed: 恢复浮球")
         if hasattr(self, "_independent_widget") and self._independent_widget:
             self._independent_widget.deleteLater()
             self._independent_widget = None

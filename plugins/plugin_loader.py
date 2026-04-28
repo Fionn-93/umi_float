@@ -3,6 +3,7 @@
 """
 
 import json
+import logging
 import shutil
 import uuid
 import subprocess
@@ -10,6 +11,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtGui import QIcon
+
+logger = logging.getLogger(__name__)
 
 from core.constants import (
     EXTENSIONS_DIR,
@@ -335,17 +338,24 @@ class PluginLoader(QObject):
         """获取 widget 插件的 Widget 类"""
         plugin_path = self._plugin_paths.get(plugin_id)
         if plugin_path is None:
+            logger.warning("get_widget_class: plugin_path 不存在, plugin_id=%s", plugin_id)
             return None
         config = self._get_effective_config(plugin_id)
-        if config is None or config.type != "widget":
+        if config is None:
+            logger.warning("get_widget_class: effective_config 为 None, plugin_id=%s", plugin_id)
+            return None
+        if config.type != "widget":
+            logger.warning("get_widget_class: 类型不是 widget, plugin_id=%s, type=%s", plugin_id, config.type)
             return None
         exec_name = config.exec
         init_file = plugin_path / exec_name
         if not init_file.exists():
+            logger.warning("get_widget_class: init_file 不存在, plugin_id=%s, path=%s", plugin_id, init_file)
             return None
         if init_file.is_dir():
             init_file = init_file / "__init__.py"
             if not init_file.exists():
+                logger.warning("get_widget_class: __init__.py 不存在, plugin_id=%s, path=%s", plugin_id, init_file)
                 return None
         try:
             import importlib.util
@@ -354,15 +364,18 @@ class PluginLoader(QObject):
                 f"w_{plugin_id}", str(init_file)
             )
             if spec is None or spec.loader is None:
+                logger.warning("get_widget_class: spec 或 loader 为 None, plugin_id=%s", plugin_id)
                 return None
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             entry_func = getattr(module, config.entry, None)
             if entry_func is None:
+                logger.warning("get_widget_class: entry func 不存在, plugin_id=%s, entry=%s", plugin_id, config.entry)
                 return None
+            logger.info("get_widget_class: 成功加载 widget, plugin_id=%s", plugin_id)
             return entry_func
         except Exception as e:
-            print(f"加载 widget 类失败: {e}")
+            logger.error("get_widget_class: 加载异常, plugin_id=%s, error=%s", plugin_id, e)
             return None
 
     def delete_plugin(self, plugin_id: str) -> bool:

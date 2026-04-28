@@ -2,7 +2,9 @@
 剪切板历史插件 - 卡片式交互增强版
 """
 
+import logging
 from pathlib import Path
+import subprocess
 
 from PyQt5.QtWidgets import (
     QWidget,
@@ -34,6 +36,8 @@ from PyQt5.QtGui import QColor, QPixmap, QPainter, QPainterPath
 
 from utils.clipboard_watcher import ClipboardWatcher
 from core.constants import DATA_DIR
+
+logger = logging.getLogger(__name__)
 
 
 class ClipboardItemWidget(QFrame):
@@ -262,6 +266,7 @@ class ClipboardWidget(QWidget):
         self._accent_color = host_info.get("accent_color", "#7B61FF")
         self._last_history_hash = None
         self._drag_pos = QPoint()
+        self._current_filter = "all"
 
         self.setWindowFlags(
             Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
@@ -313,6 +318,42 @@ class ClipboardWidget(QWidget):
                 background: rgba({ar}, {ag}, {ab}, 0.1);
                 color: #1d1d1f;
             }}
+            #FilterTabBtn {{
+                background: #f4f6f8;
+                color: #6b7280;
+                border: none;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: 500;
+                padding: 0 12px;
+            }}
+            #FilterTabBtn:hover {{
+                background: #ebedf0;
+                color: #374151;
+            }}
+            #FilterTabBtn[active="true"] {{
+                background: {accent};
+                color: #ffffff;
+            }}
+            #FilterTabBtn[active="true"]:hover {{
+                background: rgba({ar}, {ag}, {ab}, 0.85);
+            }}
+            #ClearBtn {{
+                background: transparent;
+                border: none;
+                color: {accent};
+                font-size: 12px;
+                font-weight: 500;
+                border-radius: 6px;
+                padding: 4px 8px;
+            }}
+            #ClearBtn:hover {{
+                background: rgba({ar}, {ag}, {ab}, 0.1);
+                color: #1d1d1f;
+            }}
+            #FilterBar {{
+                border-bottom: 1px solid rgba(229, 231, 235, 0.5);
+            }}
             #ClipboardListWidget {{
                 border: none;
                 background: transparent;
@@ -362,6 +403,42 @@ class ClipboardWidget(QWidget):
 
         container_lay.addWidget(self._title_bar)
 
+        self._filter_bar = QWidget()
+        self._filter_bar.setObjectName("FilterBar")
+        self._filter_bar.setFixedHeight(36)
+        self._filter_bar.setAttribute(Qt.WA_StyledBackground, True)
+        filter_lay = QHBoxLayout(self._filter_bar)
+        filter_lay.setContentsMargins(20, 0, 16, 0)
+
+        self._filter_btns = []
+        self._filter_group = QWidget()
+        filter_btn_lay = QHBoxLayout(self._filter_group)
+        filter_btn_lay.setContentsMargins(0, 0, 0, 0)
+        filter_btn_lay.setSpacing(4)
+
+        for label, key in [("全部", "all"), ("文本", "text"), ("图片", "image"), ("文件", "file")]:
+            btn = QPushButton(label)
+            btn.setObjectName("FilterTabBtn")
+            btn.setFixedSize(56, 26)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setFocusPolicy(Qt.NoFocus)
+            btn.setProperty("active", key == "all")
+            btn.clicked.connect(lambda checked, k=key: self._on_tab_clicked(k))
+            filter_btn_lay.addWidget(btn)
+            self._filter_btns.append((btn, key))
+
+        filter_lay.addWidget(self._filter_group)
+        filter_lay.addStretch()
+
+        self._clear_btn = QPushButton("清空")
+        self._clear_btn.setObjectName("ClearBtn")
+        self._clear_btn.setFixedSize(40, 28)
+        self._clear_btn.setCursor(Qt.PointingHandCursor)
+        self._clear_btn.clicked.connect(self._on_clear_clicked)
+        filter_lay.addWidget(self._clear_btn)
+
+        container_lay.addWidget(self._filter_bar)
+
         self._list_widget = QListWidget()
         self._list_widget.setObjectName("ClipboardListWidget")
         self._list_widget.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
@@ -387,7 +464,7 @@ class ClipboardWidget(QWidget):
         self._container.setGraphicsEffect(shadow)
 
     def _load_history(self):
-        rows = self._watcher.get_history(limit=40)
+        rows = self._watcher.get_history(limit=40, content_type=self._current_filter)
         current_hash = hash(tuple((r[0], r[1]) for r in rows))
         if current_hash == self._last_history_hash:
             return
@@ -443,20 +520,29 @@ class ClipboardWidget(QWidget):
         else:
             clipboard.setText(content)
 
-        self._status_label.setText("已复制到剪切板")
-        self._status_label.setStyleSheet(
-            f"color: {self._accent_color}; font-size: 11px; font-weight: bold; margin-left: 15px;"
-        )
-        QTimer.singleShot(
-            1500,
-            lambda: self._status_label.setStyleSheet(
-                "color: #6b7280; font-size: 11px; margin-left: 15px;"
-            ),
-        )
-        QTimer.singleShot(1500, lambda: self._status_label.setText("悬停查看操作"))
+        try:
+            subprocess.Popen(["notify-send", "-a", "umi-float", "已复制到剪切板"])
+        except Exception:
+            pass
+        logger.info("_handle_copy: 复制完成，发出 closed 信号")
+        self.closed.emit()
 
     def _handle_delete(self, row_id):
         self._watcher.delete_item(row_id)
+        self._load_history()
+
+    def _on_clear_clicked(self):
+        logger.info("_on_clear_clicked: 清空剪切板历史")
+        self._watcher.clear_history()
+        self._load_history()
+
+    def _on_tab_clicked(self, key):
+        self._current_filter = key
+        for btn, k in self._filter_btns:
+            btn.setProperty("active", k == key)
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+        self._last_history_hash = None
         self._load_history()
 
     def _refresh_if_needed(self):
@@ -465,7 +551,14 @@ class ClipboardWidget(QWidget):
 
     def changeEvent(self, event):
         if event.type() == QEvent.ActivationChange:
-            if self.isVisible() and not self.isActiveWindow():
+            visible = self.isVisible()
+            active = self.isActiveWindow()
+            will_close = visible and not active
+            logger.debug(
+                "changeEvent: ActivationChange visible=%s active=%s → closed.emit=%s",
+                visible, active, will_close,
+            )
+            if will_close:
                 self.closed.emit()
         super().changeEvent(event)
 
