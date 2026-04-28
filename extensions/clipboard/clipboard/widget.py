@@ -267,6 +267,7 @@ class ClipboardWidget(QWidget):
         self._last_history_hash = None
         self._drag_pos = QPoint()
         self._current_filter = "all"
+        self._just_shown = False
 
         self.setWindowFlags(
             Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
@@ -555,16 +556,21 @@ class ClipboardWidget(QWidget):
             active = self.isActiveWindow()
             will_close = visible and not active
             logger.debug(
-                "changeEvent: ActivationChange visible=%s active=%s → closed.emit=%s",
-                visible, active, will_close,
+                "changeEvent: ActivationChange visible=%s active=%s just_shown=%s → closed.emit=%s",
+                visible, active, self._just_shown, will_close,
             )
-            if will_close:
+            if will_close and not self._just_shown:
                 self.closed.emit()
         super().changeEvent(event)
 
     def showEvent(self, event):
         super().showEvent(event)
+        self._just_shown = True
         QTimer.singleShot(100, self.activateWindow)
+        QTimer.singleShot(300, self._clear_just_shown)
+
+    def _clear_just_shown(self):
+        self._just_shown = False
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
