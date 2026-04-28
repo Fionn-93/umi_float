@@ -17,7 +17,19 @@ from PyQt5.QtWidgets import (
     QFrame,
     QAbstractItemView,
 )
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QPoint, QSize, QDateTime, QMimeData, QUrl, QRectF, QByteArray
+from PyQt5.QtCore import (
+    Qt,
+    QTimer,
+    pyqtSignal,
+    QPoint,
+    QSize,
+    QDateTime,
+    QMimeData,
+    QUrl,
+    QRectF,
+    QByteArray,
+    QEvent,
+)
 from PyQt5.QtGui import QColor, QPixmap, QPainter, QPainterPath
 
 from utils.clipboard_watcher import ClipboardWatcher
@@ -112,9 +124,7 @@ class ClipboardItemWidget(QFrame):
         self.btn_copy.clicked.connect(
             lambda: self.copy_requested.emit(self.content, self.content_type)
         )
-        self.btn_delete.clicked.connect(
-            lambda: self.delete_requested.emit(self.row_id)
-        )
+        self.btn_delete.clicked.connect(lambda: self.delete_requested.emit(self.row_id))
 
     def _build_text_content(self, layout):
         self.setFixedHeight(90)
@@ -137,9 +147,7 @@ class ClipboardItemWidget(QFrame):
 
         if not pixmap.isNull():
             scaled = pixmap.scaled(
-                240, 90,
-                Qt.KeepAspectRatioByExpanding,
-                Qt.SmoothTransformation
+                240, 90, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation
             )
             img_w = scaled.width()
             img_h = scaled.height()
@@ -187,9 +195,7 @@ class ClipboardItemWidget(QFrame):
             display_name = file_name
 
         name_label = QLabel(display_name)
-        name_label.setStyleSheet(
-            "color: #1f2937; font-size: 13px; font-weight: 500;"
-        )
+        name_label.setStyleSheet("color: #1f2937; font-size: 13px; font-weight: 500;")
         name_label.setWordWrap(True)
         name_label.setMaximumHeight(40)
         layout.addWidget(name_label)
@@ -257,7 +263,9 @@ class ClipboardWidget(QWidget):
         self._last_history_hash = None
         self._drag_pos = QPoint()
 
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
+        self.setWindowFlags(
+            Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+        )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.resize(380, 560)
 
@@ -428,7 +436,9 @@ class ClipboardWidget(QWidget):
             urls = [QUrl.fromLocalFile(p) for p in content.strip().split("\n")]
             mime.setUrls(urls)
             gnome_data = "copy\n" + "\n".join(u.toString() for u in urls)
-            mime.setData("x-special/gnome-copied-files", QByteArray(gnome_data.encode()))
+            mime.setData(
+                "x-special/gnome-copied-files", QByteArray(gnome_data.encode())
+            )
             clipboard.setMimeData(mime)
         else:
             clipboard.setText(content)
@@ -452,6 +462,16 @@ class ClipboardWidget(QWidget):
     def _refresh_if_needed(self):
         if self.isVisible():
             self._load_history()
+
+    def changeEvent(self, event):
+        if event.type() == QEvent.ActivationChange:
+            if self.isVisible() and not self.isActiveWindow():
+                self.closed.emit()
+        super().changeEvent(event)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        QTimer.singleShot(100, self.activateWindow)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:

@@ -57,6 +57,7 @@ class PieButton(QLabel):
         self.setAlignment(Qt.AlignCenter)
         self._scale = 0.0
         self._hover_enabled = True
+        self._is_custom_icon = False
 
         tooltip = name
         if description:
@@ -70,9 +71,13 @@ class PieButton(QLabel):
             from plugins.plugin_manager import PluginManager
 
             icon = PluginManager.get().resolve_icon(icon_name, plugin_id)
+            self._is_custom_icon = True
 
         if icon is None or icon.isNull():
             icon = QIcon.fromTheme(icon_name)
+            self._is_custom_icon = False
+
+        self._apply_theme()
 
         if icon.isNull():
             self.setText(name[0].upper())
@@ -80,11 +85,22 @@ class PieButton(QLabel):
             app = QApplication.instance()
             dpr = app.devicePixelRatio() if app else 1.0
             icon_size = int(size * 0.618)
-            pixmap = icon.pixmap(int(icon_size * dpr), int(icon_size * dpr))
-            pixmap.setDevicePixelRatio(dpr)
-            self.setPixmap(pixmap)
 
-        self._apply_theme()
+            if self._is_custom_icon:
+                src = icon.pixmap(int(icon_size * dpr), int(icon_size * dpr))
+                pixmap = QPixmap(src.size())
+                pixmap.fill(Qt.transparent)
+                painter = QPainter(pixmap)
+                painter.drawPixmap(0, 0, src)
+                painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+                painter.fillRect(pixmap.rect(), self.THEME_TEXT_NORMAL)
+                painter.end()
+                pixmap.setDevicePixelRatio(dpr)
+                self.setPixmap(pixmap)
+            else:
+                pixmap = icon.pixmap(int(icon_size * dpr), int(icon_size * dpr))
+                pixmap.setDevicePixelRatio(dpr)
+                self.setPixmap(pixmap)
 
     def _apply_theme(self):
         """从配置应用主题色"""

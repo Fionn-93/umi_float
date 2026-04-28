@@ -395,6 +395,7 @@ class Application:
         self._independent_widget.move(x, y)
         self._independent_widget.show()
         self._independent_widget.raise_()
+        self._independent_widget.activateWindow()
 
     def _on_independent_widget_closed(self):
         """独立 widget 关闭后恢复浮球"""
