@@ -1,0 +1,11 @@
+{
+  "name": "取色器",
+  "description": "从屏幕任意位置拾取颜色",
+  "icon": "icons/color-picker.svg",
+  "exec": "color_picker",
+  "type": "widget",
+  "version": "1.0.0",
+  "entry": "create_widget",
+  "window_mode": "independent",
+  "enabled": true
+}
