@@ -7,7 +7,7 @@ from pathlib import Path
 
 # 应用信息
 APP_NAME = "Umi-Float"
-APP_VERSION = "0.1.0"
+APP_VERSION = "1.0.0"
 APP_ID = "com.umi.float"
 
 # 配置目录
