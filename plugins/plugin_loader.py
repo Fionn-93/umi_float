@@ -376,16 +376,25 @@ class PluginLoader(QObject):
 
             import sys as _sys
 
-            def _make_entry_wrapper(_func):
+            _plugin_dir = str(init_file.parent)
+
+            def _make_entry_wrapper(_func, _pdir):
                 def _wrapper(host_info):
-                    _sys.modules.pop('widget', None)
+                    _before = set(_sys.modules.keys())
+                    _sys.path.insert(0, _pdir)
                     try:
                         return _func(host_info)
                     finally:
-                        _sys.modules.pop('widget', None)
+                        _after = set(_sys.modules.keys())
+                        for _key in _after - _before:
+                            _sys.modules.pop(_key, None)
+                        try:
+                            _sys.path.remove(_pdir)
+                        except ValueError:
+                            pass
                 return _wrapper
 
-            return _make_entry_wrapper(entry_func)
+            return _make_entry_wrapper(entry_func, _plugin_dir)
         except Exception as e:
             logger.error("get_widget_class: 加载异常, plugin_id=%s, error=%s", plugin_id, e)
             return None
