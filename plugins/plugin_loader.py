@@ -373,7 +373,19 @@ class PluginLoader(QObject):
                 logger.warning("get_widget_class: entry func 不存在, plugin_id=%s, entry=%s", plugin_id, config.entry)
                 return None
             logger.info("get_widget_class: 成功加载 widget, plugin_id=%s", plugin_id)
-            return entry_func
+
+            import sys as _sys
+
+            def _make_entry_wrapper(_func):
+                def _wrapper(host_info):
+                    _sys.modules.pop('widget', None)
+                    try:
+                        return _func(host_info)
+                    finally:
+                        _sys.modules.pop('widget', None)
+                return _wrapper
+
+            return _make_entry_wrapper(entry_func)
         except Exception as e:
             logger.error("get_widget_class: 加载异常, plugin_id=%s, error=%s", plugin_id, e)
             return None
