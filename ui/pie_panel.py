@@ -86,7 +86,7 @@ class PieButton(QLabel):
             dpr = app.devicePixelRatio() if app else 1.0
             icon_size = int(size * 0.618)
 
-            if self._is_custom_icon:
+            if self._is_custom_icon and not self.icon_name.lower().endswith('.png'):
                 src = icon.pixmap(int(icon_size * dpr), int(icon_size * dpr))
                 pixmap = QPixmap(src.size())
                 pixmap.fill(Qt.transparent)
