@@ -1,0 +1,8 @@
+{
+  "name": "深度计算器",
+  "description": "计算器",
+  "icon": "deepin-calculator",
+  "exec": "/usr/bin/ll-cli run org.deepin.calculator -- deepin-calculator",
+  "type": "command",
+  "enabled": true
+}

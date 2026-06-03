@@ -154,7 +154,10 @@ class PluginLoader(QObject):
         for plugin_id, config in self._plugins.items():
             if plugin_id not in enabled_order and plugin_id not in disabled_order:
                 effective_config = self._get_effective_config(plugin_id)
-                disabled_list.append((plugin_id, effective_config))
+                if effective_config.enabled:
+                    enabled_list.append((plugin_id, effective_config))
+                else:
+                    disabled_list.append((plugin_id, effective_config))
 
         return enabled_list, disabled_list
 

@@ -25,6 +25,7 @@ rsync -a \
     --exclude='requirements-dev.txt' \
     --exclude='.gitignore' \
     --exclude='.mypy_cache' \
+    --exclude='extensions/performance-monitor' \
     --exclude='.pytest_cache' \
     "$PROJECT_DIR/" \
     "$STAGING_DIR/opt/umi-float/"
