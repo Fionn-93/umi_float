@@ -22,6 +22,7 @@ DESKTOP_DIRS = [
     "/usr/share/applications",
     "/usr/local/share/applications",
     os.path.expanduser("~/.local/share/applications"),
+    "/var/lib/linglong/entries/apps/share/applications",
 ]
 
 
