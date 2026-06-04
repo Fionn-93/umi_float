@@ -48,3 +48,24 @@ class EdgeSnapper:
             y = bottom - height
 
         return QPoint(x, y)
+
+    def get_snapped_edge(
+        self, widget_pos: QPoint, widget_size: tuple, screen_rect: QRect
+    ) -> str | None:
+        x, y = widget_pos.x(), widget_pos.y()
+        width, height = widget_size
+
+        left = screen_rect.left()
+        right = screen_rect.right()
+        top = screen_rect.top()
+        bottom = screen_rect.bottom()
+
+        if abs(x - left) <= self.snap_threshold:
+            return "left"
+        elif abs(x + width - right) <= self.snap_threshold:
+            return "right"
+        if abs(y - top) <= self.snap_threshold:
+            return "top"
+        elif abs(y + height - bottom) <= self.snap_threshold:
+            return "bottom"
+        return None

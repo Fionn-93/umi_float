@@ -214,6 +214,8 @@ class Application:
 
     def _toggle_panel(self):
         """切换抽屉面板显示"""
+        if self.float_widget._state != "normal":
+            return
         cfg = self.config.get()
         if cfg.get("pie_expand_mode", "click") != "click":
             return
@@ -225,6 +227,8 @@ class Application:
 
     def _on_hover_expand(self):
         """悬浮展开面板"""
+        if self.float_widget._state != "normal":
+            return
         cfg = self.config.get()
         if cfg.get("pie_expand_mode", "click") != "hover":
             return

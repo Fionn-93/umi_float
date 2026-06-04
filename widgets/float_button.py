@@ -1,11 +1,16 @@
 """
 悬浮球按钮组件
 支持三种显示模式：时钟、性能、天气
+支持胶囊变形（贴边性能监视器）
 """
 
 from PyQt5.QtWidgets import QLabel
-from PyQt5.QtCore import Qt, QTimer, QTime, QRect
-from PyQt5.QtGui import QColor, QFont, QPainter, QPen, QIcon, QPixmap
+from PyQt5.QtCore import (
+    Qt, QTimer, QTime, QRect, QRectF, pyqtProperty,
+)
+from PyQt5.QtGui import (
+    QColor, QFont, QPainter, QPen, QIcon, QPixmap, QPainterPath,
+)
 
 from core.config import get_config
 from utils.theme_colors import theme_from_key, DEFAULT_THEME
@@ -28,6 +33,9 @@ class FloatButton(QLabel):
         self._net_up_text = "0B"
         self._net_down_text = "0B"
         self._weather_data = None
+
+        self._capsule_mode = False
+        self._scale = 1.0
 
         self._apply_theme()
 
@@ -80,15 +88,14 @@ class FloatButton(QLabel):
         self._weather_data = fetch_weather(api_key, location, api_host)
 
     def _refresh_content(self):
-        if self._mode == "performance":
-            mem = get_memory_usage()
-            if mem:
-                self._mem_percent = mem["percent"]
-            net = NetworkMonitor.get().get_speed()
-            if net:
-                self._net_up_text = net["up_text"]
-                self._net_down_text = net["down_text"]
-        elif self._mode == "weather":
+        mem = get_memory_usage()
+        if mem:
+            self._mem_percent = mem["percent"]
+        net = NetworkMonitor.get().get_speed()
+        if net:
+            self._net_up_text = net["up_text"]
+            self._net_down_text = net["down_text"]
+        if self._mode == "weather":
             cached = get_cached_weather()
             if cached:
                 self._weather_data = cached
@@ -96,13 +103,76 @@ class FloatButton(QLabel):
                 self._fetch_weather()
         self.update()
 
+    # -- scale property for QPropertyAnimation --
+
+    def _get_scale(self):
+        return self._scale
+
+    def _set_scale(self, value):
+        self._scale = value
+        self.update()
+
+    scale = pyqtProperty(float, _get_scale, _set_scale)
+
+    # -- painting --
+
     def paintEvent(self, event):
-        if self._mode == "clock":
-            self._paint_clock_mode()
-        elif self._mode == "performance":
-            self._paint_performance_mode()
-        elif self._mode == "weather":
-            self._paint_weather_mode()
+        if self._capsule_mode:
+            self._paint_capsule_mode()
+        else:
+            if self._mode == "clock":
+                self._paint_clock_mode()
+            elif self._mode == "performance":
+                self._paint_performance_mode()
+            elif self._mode == "weather":
+                self._paint_weather_mode()
+
+    def _perf_color(self):
+        if self._mem_percent < 40:
+            return QColor(78, 205, 196)
+        elif self._mem_percent < 80:
+            return QColor(255, 200, 50)
+        return QColor(255, 107, 107)
+
+    def _paint_capsule_mode(self):
+        w = self.width()
+        h = self.height()
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        radius = w // 2
+        margin = 0
+        capsule_rect = QRectF(
+            margin, margin, w - 2 * margin, h - 2 * margin,
+        )
+
+        track_color = QColor(self.THEME_BG)
+        track_color.setAlpha(int(255 * 0.8))
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(track_color)
+        painter.drawRoundedRect(capsule_rect, radius, radius)
+
+        fill_h = int(h * self._mem_percent / 100.0)
+        fill_rect = QRectF(
+            margin, h - margin - fill_h,
+            w - 2 * margin, fill_h,
+        )
+
+        painter.setBrush(self._perf_color())
+
+        clip_path = QPainterPath()
+        clip_path.addRoundedRect(capsule_rect, radius, radius)
+        painter.setClipPath(clip_path)
+        painter.drawRect(fill_rect)
+        painter.setClipping(False)
+
+        border_color = QColor(self.THEME_BORDER)
+        border_color.setAlpha(100)
+        painter.setPen(QPen(border_color, 1))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRoundedRect(capsule_rect, radius, radius)
+
+        painter.end()
 
     def _paint_clock_mode(self):
         size = self.size
@@ -118,6 +188,7 @@ class FloatButton(QLabel):
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
+        self._apply_scale_transform(painter)
 
         opacity = int(get_config().get().get("opacity", 0.9) * 255)
         bg = QColor(self.THEME_BG)
@@ -183,6 +254,7 @@ class FloatButton(QLabel):
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
+        self._apply_scale_transform(painter)
 
         bg = QColor(self.THEME_BG)
         bg.setAlpha(255)
@@ -211,7 +283,7 @@ class FloatButton(QLabel):
 
         num_text = str(int(self._mem_percent))
         sym_text = "%"
-        net_text = f"↓{self._net_down_text}"
+        net_text = f"\u2193{self._net_down_text}"
 
         font_num = QFont("", max(8, int(size * 0.28)), QFont.Bold)
         font_sym = QFont("", max(5, int(size * 0.13)), QFont.Bold)
@@ -268,6 +340,7 @@ class FloatButton(QLabel):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
+        self._apply_scale_transform(painter)
 
         opacity = int(get_config().get().get("opacity", 0.9) * 255)
         bg = QColor(self.THEME_BG)
@@ -282,7 +355,7 @@ class FloatButton(QLabel):
             font = QFont("", max(8, int(size * 0.15)), QFont.Bold)
             painter.setFont(font)
             painter.setPen(QPen(self.THEME_TEXT))
-            painter.drawText(self.rect(), Qt.AlignCenter, "--°C")
+            painter.drawText(self.rect(), Qt.AlignCenter, "--\u00b0C")
         else:
             icon_code = data.get("icon_code", "100")
             icon_path = get_icon_path(icon_code)
@@ -329,7 +402,7 @@ class FloatButton(QLabel):
 
             painter.setFont(font_unit)
             fm_unit = painter.fontMetrics()
-            unit_w = fm_unit.horizontalAdvance("°C")
+            unit_w = fm_unit.horizontalAdvance("\u00b0C")
 
             painter.setFont(font_desc)
             fm_desc = painter.fontMetrics()
@@ -347,7 +420,7 @@ class FloatButton(QLabel):
             painter.drawText(
                 row1_x + temp_w + 1,
                 start_y + fm_temp.ascent() - (fm_temp.ascent() // 7),
-                "°C",
+                "\u00b0C",
             )
 
             desc_x = (size - fm_desc.horizontalAdvance(desc)) // 2
@@ -365,6 +438,15 @@ class FloatButton(QLabel):
         painter.drawEllipse(1, 1, radius * 2, radius * 2)
 
         painter.end()
+
+    def _apply_scale_transform(self, painter):
+        if self._scale != 1.0:
+            s = self._scale
+            cx = self.width() / 2.0
+            cy = self.height() / 2.0
+            painter.translate(cx, cy)
+            painter.scale(s, s)
+            painter.translate(-cx, -cy)
 
     def update_time(self):
         current_time = QTime.currentTime().toString("HH:mm")
