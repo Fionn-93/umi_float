@@ -502,20 +502,17 @@ class FloatWidget(DraggableWidget):
         super().mouseReleaseEvent(event)
 
         if event.button() == Qt.LeftButton:
-            if self._state in ("capsule",):
+            if self._state in ("capsule", "hover_expanded"):
+                if self._state == "hover_expanded":
+                    if self._press_pos is not None:
+                        release_pos = event.globalPos()
+                        distance = (release_pos - self._press_pos).manhattanLength()
+                        if distance >= self._drag_threshold:
+                            self._enter_normal_mode()
                 self._press_pos = None
                 return
 
             self.snap_to_edge()
-
-            if self._state == "hover_expanded":
-                if self._press_pos is not None:
-                    release_pos = event.globalPos()
-                    distance = (release_pos - self._press_pos).manhattanLength()
-                    if distance < self._drag_threshold:
-                        self._collapse_to_capsule()
-                self._press_pos = None
-                return
 
             if self._press_pos is not None:
                 release_pos = event.globalPos()
