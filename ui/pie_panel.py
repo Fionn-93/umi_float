@@ -86,7 +86,7 @@ class PieButton(QLabel):
             dpr = app.devicePixelRatio() if app else 1.0
             icon_size = int(size * 0.618)
 
-            if self._is_custom_icon and not self.icon_name.lower().endswith('.png'):
+            if self._is_custom_icon and not self.icon_name.lower().endswith(".png"):
                 src = icon.pixmap(int(icon_size * dpr), int(icon_size * dpr))
                 pixmap = QPixmap(src.size())
                 pixmap.fill(Qt.transparent)
@@ -492,12 +492,16 @@ class PiePanel(QWidget):
         """插件点击"""
         if self._preview_mode:
             return
+        if self._is_animating:
+            return
         self.plugin_executed.emit(plugin_id)
         self.hide_panel()
 
     def _on_plugin_context_menu(self, payload: str):
         """插件右键菜单回调"""
         if self._preview_mode:
+            return
+        if self._is_animating:
             return
         if payload.startswith("__disable__:"):
             plugin_id = payload[len("__disable__:") :]
@@ -533,6 +537,7 @@ class PiePanel(QWidget):
         self._stop_all_animations()
         self._is_expanded = False
         self._is_collapsing = False
+        self._is_animating = False
         self.clearMask()
         self.hide()
         self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
@@ -698,6 +703,7 @@ class PiePanel(QWidget):
     def _expand_animations(self):
         """展开动画：按钮从中心飞出到目标位置，同时从小变大"""
         self._is_expanded = True
+        self._is_animating = True
 
         self._shadow_timer.start()
 
@@ -750,6 +756,7 @@ class PiePanel(QWidget):
 
     def _on_expand_finished(self):
         """展开动画结束后恢复 hover 并检测鼠标位置"""
+        self._is_animating = False
         self._shadow_timer.stop()
         self.update()
 
@@ -789,6 +796,7 @@ class PiePanel(QWidget):
     def _collapse_animations(self, callback):
         """收起动画：按钮飞回中心，同时缩小"""
         self._is_expanded = False
+        self._is_animating = True
 
         self._shadow_timer.start()
 
@@ -846,6 +854,7 @@ class PiePanel(QWidget):
 
     def _hide_immediate(self):
         """立即隐藏"""
+        self._is_animating = False
         self._shadow_timer.stop()
         self._leave_timer.stop()
         self._is_expanded = False
@@ -876,6 +885,7 @@ class PiePanel(QWidget):
         if self._hover_mode:
             self._is_expanded = False
             self._is_collapsing = False
+            self._is_animating = False
             super().hideEvent(event)
             return
         if self._is_expanded and not self._is_collapsing:
