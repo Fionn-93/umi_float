@@ -20,8 +20,8 @@ CAPSULE_WIDTH = 8
 EXPAND_DURATION = 250
 COLLAPSE_FADE_DURATION = 200
 CAPSULE_FADE_IN_DURATION = 100
-HOVER_ZONE_WIDTH = 24
-HOVER_ZONE_V_EXTRA = 50
+HOVER_ZONE_WIDTH = 12
+HOVER_ZONE_V_EXTRA = 12
 EDGE_HOVER_CHECK_MS = 50
 EXPAND_SCALE_FROM = 0.5
 COLLAPSE_SCALE_TO = 0.5
@@ -57,10 +57,17 @@ class FloatWidget(DraggableWidget):
         self._edge_side = None
         self._animating = False
         self._anim_group = None
+        self._menu_visible = False
 
         self._edge_hover_timer = QTimer(self)
         self._edge_hover_timer.setInterval(EDGE_HOVER_CHECK_MS)
         self._edge_hover_timer.timeout.connect(self._check_edge_hover)
+
+        self._leave_check_timer = QTimer(self)
+        self._leave_check_timer.setInterval(EDGE_HOVER_CHECK_MS)
+        self._leave_check_timer.timeout.connect(self._check_expanded_leave)
+
+        self._edge_hover_paused = False
 
         self._setup_window()
         self._setup_ui()
@@ -156,6 +163,7 @@ class FloatWidget(DraggableWidget):
 
         self._state = "hover_expanded"
         self._edge_hover_timer.stop()
+        self._leave_check_timer.stop()
 
         ball_size = self.config.get()["float_ball_size"]
         tx, ty = self._snap_circle_pos(ball_size)
@@ -168,6 +176,9 @@ class FloatWidget(DraggableWidget):
 
         self._state = "capsule"
         self.ball.timer.setInterval(1000)
+        self._leave_check_timer.stop()
+        self._collapse_pending = False
+        self._edge_hover_paused = True
 
         cw, ch = self._get_capsule_size()
 
@@ -181,6 +192,9 @@ class FloatWidget(DraggableWidget):
         self._edge_side = None
         self._saved_display_mode = None
         self._edge_hover_timer.stop()
+        self._leave_check_timer.stop()
+        self._collapse_pending = False
+        self._edge_hover_paused = False
 
         ball_size = self.config.get()["float_ball_size"]
         self.ball._capsule_mode = False
@@ -203,6 +217,7 @@ class FloatWidget(DraggableWidget):
         self.setGeometry(tx, ty, cw, ch)
         self.setWindowOpacity(self.config.get()["opacity"])
         self._save_position()
+        self._edge_hover_paused = False
         self._edge_hover_timer.start()
 
     def _snap_circle(self, tx, ty, ball_size):
@@ -255,6 +270,8 @@ class FloatWidget(DraggableWidget):
         self._animating = False
         self.setWindowOpacity(self.config.get()["opacity"])
         self.ball._scale = 1.0
+        if self._state == "hover_expanded":
+            self._leave_check_timer.start()
 
     def _animate_collapse(self, cw, ch):
         self._animating = True
@@ -377,6 +394,18 @@ class FloatWidget(DraggableWidget):
     def _check_edge_hover(self):
         if self._state != "capsule" or self._animating:
             return
+        if self._edge_hover_paused:
+            cursor_pos = QCursor.pos()
+            capsule_geo = self.geometry()
+            zone = QRect(
+                capsule_geo.x() - HOVER_ZONE_WIDTH,
+                capsule_geo.y() - HOVER_ZONE_V_EXTRA,
+                capsule_geo.width() + 2 * HOVER_ZONE_WIDTH,
+                capsule_geo.height() + 2 * HOVER_ZONE_V_EXTRA,
+            )
+            if not zone.contains(cursor_pos):
+                self._edge_hover_paused = False
+            return
 
         cursor_pos = QCursor.pos()
         capsule_geo = self.geometry()
@@ -391,6 +420,25 @@ class FloatWidget(DraggableWidget):
         if zone.contains(cursor_pos):
             self._edge_hover_timer.stop()
             QTimer.singleShot(150, self._expand_from_capsule)
+
+    def _check_expanded_leave(self):
+        if self._state != "hover_expanded" or self._animating or self._dragging:
+            self._leave_check_timer.stop()
+            return
+        if not self.rect().contains(self.mapFromGlobal(QCursor.pos())):
+            self._leave_check_timer.stop()
+            self._collapse_pending = True
+            QTimer.singleShot(150, self._confirm_collapse)
+
+    def _confirm_collapse(self):
+        self._collapse_pending = False
+        if self._state != "hover_expanded" or self._animating or self._dragging:
+            return
+        if not self.rect().contains(self.mapFromGlobal(QCursor.pos())):
+            self._collapse_to_capsule()
+        else:
+            if self._state == "hover_expanded":
+                self._leave_check_timer.start()
 
     # -- config --
 
@@ -430,7 +478,8 @@ class FloatWidget(DraggableWidget):
             self.setWindowOpacity(opacity)
             self.ball.set_size(size)
             self.ball.refresh_theme()
-            self.ball.set_mode(self._saved_display_mode)
+            self._saved_display_mode = cfg["display_mode"]
+            self.ball.set_mode(cfg["display_mode"])
 
         self.updateGeometry()
         self.repaint()
@@ -456,7 +505,13 @@ class FloatWidget(DraggableWidget):
             if self._state == "capsule":
                 event.accept()
                 return
+            self._menu_visible = True
             self.show_menu.emit()
+            self._menu_visible = False
+            self._collapse_pending = False
+            if self._state == "hover_expanded":
+                if not self.rect().contains(self.mapFromGlobal(QCursor.pos())):
+                    self._collapse_to_capsule()
             event.accept()
         else:
             super().mousePressEvent(event)
@@ -534,7 +589,9 @@ class FloatWidget(DraggableWidget):
 
     def leaveEvent(self, event):
         self._hover_timer.stop()
-        if self._state == "hover_expanded" and not self._dragging:
+        self._leave_check_timer.stop()
+        self._collapse_pending = False
+        if self._state == "hover_expanded" and not self._dragging and not self._menu_visible:
             self._collapse_to_capsule()
             return
         super().leaveEvent(event)
