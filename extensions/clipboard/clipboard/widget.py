@@ -143,7 +143,7 @@ class ClipboardItemWidget(QFrame):
         layout.addWidget(self.content_label)
 
     def _build_image_content(self, layout):
-        self.setFixedHeight(140)
+        self.setFixedHeight(160)
         img_path = DATA_DIR / "clipboard_images" / self.content
         pixmap = QPixmap(str(img_path)) if img_path.exists() else QPixmap()
 
@@ -496,7 +496,7 @@ class ClipboardWidget(QWidget):
             item = QListWidgetItem(self._list_widget)
 
             if content_type == "image":
-                item.setSizeHint(QSize(0, 148))
+                item.setSizeHint(QSize(0, 168))
             else:
                 item.setSizeHint(QSize(0, 98))
 
