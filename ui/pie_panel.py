@@ -362,6 +362,7 @@ class PiePanel(QWidget):
         self._center_pos = QPoint(200, 200)
         self._pie_radius = 0
         self._animation_group = []
+        self._collapse_done_timer = None
         self._is_expanded = False
         self._is_collapsing = False
         self._panel_dragging = False
@@ -566,6 +567,10 @@ class PiePanel(QWidget):
             anim.stop()
             anim.deleteLater()
         self._animation_group.clear()
+        if self._collapse_done_timer is not None:
+            self._collapse_done_timer.stop()
+            self._collapse_done_timer.deleteLater()
+            self._collapse_done_timer = None
 
     def show_panel(self, parent_widget, animate=True):
         """显示面板"""
@@ -837,7 +842,11 @@ class PiePanel(QWidget):
 
         # 动画结束后执行回调
         total_duration = 200 + (len(self._buttons) - 1) * 30
-        QTimer.singleShot(total_duration, callback)
+        self._collapse_done_timer = QTimer(self)
+        self._collapse_done_timer.setSingleShot(True)
+        self._collapse_done_timer.setInterval(total_duration)
+        self._collapse_done_timer.timeout.connect(callback)
+        self._collapse_done_timer.start()
 
     def hide_panel(self):
         """隐藏面板"""
@@ -877,8 +886,19 @@ class PiePanel(QWidget):
             return
         super().mouseReleaseEvent(event)
 
+    def closeEvent(self, event):
+        """拦截 Qt Popup 点击外部自动关闭，改为播放收起动画"""
+        if self._preview_mode or self._hover_mode:
+            super().closeEvent(event)
+            return
+        if self._is_expanded and not self._is_collapsing:
+            event.ignore()
+            self.hide_panel()
+            return
+        super().closeEvent(event)
+
     def hideEvent(self, event):
-        """隐藏事件 - 拦截 Popup 自动关闭，先播放收起动画"""
+        """隐藏事件"""
         if self._preview_mode:
             super().hideEvent(event)
             return
@@ -888,14 +908,6 @@ class PiePanel(QWidget):
             self._is_animating = False
             super().hideEvent(event)
             return
-        if self._is_expanded and not self._is_collapsing:
-            event.ignore()
-            self._is_collapsing = True
-            # Qt Popup 会强制隐藏窗口，必须立即重新显示才能看到动画
-            QTimer.singleShot(0, self.show)
-            self._collapse_animations(self._hide_immediate)
-            return
-
         self._is_expanded = False
         self._is_collapsing = False
         super().hideEvent(event)

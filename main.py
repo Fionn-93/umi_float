@@ -357,12 +357,16 @@ class Application:
         logger.info("_show_widget_panel: plugin_id=%s", plugin_id)
         widget_class = self.plugin_manager.get_widget_class(plugin_id)
         if widget_class is None:
-            logger.warning("_show_widget_panel: widget_class 为 None, plugin_id=%s", plugin_id)
+            logger.warning(
+                "_show_widget_panel: widget_class 为 None, plugin_id=%s", plugin_id
+            )
             return
         plugins = self.plugin_manager.get_plugins()
         config = plugins.get(plugin_id)
         if config is None:
-            logger.warning("_show_widget_panel: config 为 None, plugin_id=%s", plugin_id)
+            logger.warning(
+                "_show_widget_panel: config 为 None, plugin_id=%s", plugin_id
+            )
             return
         data_dir = self.plugin_manager.get_plugin_data_dir(plugin_id)
         from utils.theme_colors import get_current_accent_color
@@ -374,7 +378,11 @@ class Application:
             "data_dir": data_dir,
             "app": QApplication.instance(),
         }
-        logger.info("_show_widget_panel: 显示 widget, name=%s, mode=%s", config.name, config.window_mode)
+        logger.info(
+            "_show_widget_panel: 显示 widget, name=%s, mode=%s",
+            config.name,
+            config.window_mode,
+        )
         self.drawer_panel.hide_panel()
 
         if config.window_mode == "independent":
@@ -413,7 +421,11 @@ class Application:
 
         logger.info(
             "_show_independent_widget: 显示 widget, pos=(%d,%d), size=%dx%d, screen=%s",
-            x, y, self._independent_widget.width(), self._independent_widget.height(), screen_rect,
+            x,
+            y,
+            self._independent_widget.width(),
+            self._independent_widget.height(),
+            screen_rect,
         )
         self.float_widget.hide()
         self._independent_widget.move(x, y)
