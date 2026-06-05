@@ -9,11 +9,11 @@ import subprocess
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QListWidget,
     QListWidgetItem,
     QPushButton,
     QLabel,
-    QHBoxLayout,
     QGraphicsDropShadowEffect,
     QApplication,
     QFrame,
@@ -32,12 +32,15 @@ from PyQt5.QtCore import (
     QByteArray,
     QEvent,
 )
-from PyQt5.QtGui import QColor, QPixmap, QPainter, QPainterPath
+from PyQt5.QtGui import QColor, QPixmap, QPainter, QPainterPath, QIcon
+from PyQt5.QtSvg import QSvgRenderer
 
 from utils.clipboard_watcher import ClipboardWatcher
 from core.constants import DATA_DIR
 
 logger = logging.getLogger(__name__)
+
+_ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
 
 
 class ClipboardItemWidget(QFrame):
@@ -258,6 +261,7 @@ class ClipboardWidget(QWidget):
     """剪切板历史主窗口"""
 
     closed = pyqtSignal()
+    pin_toggled = pyqtSignal(bool)
 
     def __init__(self, host_info: dict):
         super().__init__()
@@ -268,6 +272,7 @@ class ClipboardWidget(QWidget):
         self._drag_pos = QPoint()
         self._current_filter = "all"
         self._just_shown = False
+        self._pinned = False
 
         self.setWindowFlags(
             Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
@@ -295,6 +300,7 @@ class ClipboardWidget(QWidget):
         ar, ag, ab = self._rgb_from_hex(accent)
 
         self.setStyleSheet(f"""
+            QPushButton:focus {{ outline: none; }}
             #MainContainer {{
                 background: #ffffff;
                 border: 1px solid #e5e7eb;
@@ -394,6 +400,17 @@ class ClipboardWidget(QWidget):
         self._title_label.setObjectName("WindowTitle")
         title_lay.addWidget(self._title_label)
         title_lay.addStretch()
+
+        self._pin_btn = QPushButton()
+        self._pin_btn.setObjectName("PinBtn")
+        self._pin_btn.setFixedSize(32, 32)
+        self._pin_btn.setCursor(Qt.PointingHandCursor)
+        self._pin_btn.setStyleSheet("background: transparent; border: none;")
+        self._pin_btn.setIcon(self._load_pin_icon(False))
+        self._pin_btn.enterEvent = lambda e: self._update_pin_hover(True)
+        self._pin_btn.leaveEvent = lambda e: self._update_pin_hover(False)
+        self._pin_btn.clicked.connect(self._on_pin_clicked)
+        title_lay.addWidget(self._pin_btn)
 
         self._close_btn = QPushButton("✕")
         self._close_btn.setObjectName("CloseBtn")
@@ -500,6 +517,38 @@ class ClipboardWidget(QWidget):
             self._list_widget.addItem(item)
             self._list_widget.setItemWidget(item, card)
 
+    def _load_pin_icon(self, filled: bool, color=None) -> QIcon:
+        name = "pushpin-fill" if filled else "pushpin-line"
+        svg_path = _ASSETS_DIR / f"{name}.svg"
+        if color is None:
+            color = QColor(self._accent_color) if filled else QColor("#86868b")
+        elif isinstance(color, str):
+            color = QColor(color)
+        app = QApplication.instance()
+        dpr = app.devicePixelRatio() if app else 1.0
+        icon_size = int(16 * dpr)
+        pixmap = QPixmap(icon_size, icon_size)
+        pixmap.fill(Qt.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.Antialiasing)
+        QSvgRenderer(str(svg_path)).render(painter)
+        painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+        painter.fillRect(pixmap.rect(), color)
+        painter.end()
+        pixmap.setDevicePixelRatio(dpr)
+        return QIcon(pixmap)
+
+    def _update_pin_hover(self, hovered: bool):
+        if self._pinned:
+            return
+        color = "#1d1d1f" if hovered else "#86868b"
+        self._pin_btn.setIcon(self._load_pin_icon(False, color))
+
+    def _on_pin_clicked(self):
+        self._pinned = not self._pinned
+        self._pin_btn.setIcon(self._load_pin_icon(self._pinned))
+        self.pin_toggled.emit(self._pinned)
+
     def _handle_copy(self, content, content_type):
         clipboard = QApplication.clipboard()
         if content_type == "image":
@@ -525,8 +574,9 @@ class ClipboardWidget(QWidget):
             subprocess.Popen(["notify-send", "-a", "umi-float", "已复制到剪切板"])
         except Exception:
             pass
-        logger.info("_handle_copy: 复制完成，发出 closed 信号")
-        self.closed.emit()
+        logger.info("_handle_copy: 复制完成, pinned=%s", self._pinned)
+        if not self._pinned:
+            self.closed.emit()
 
     def _handle_delete(self, row_id):
         self._watcher.delete_item(row_id)
@@ -556,10 +606,10 @@ class ClipboardWidget(QWidget):
             active = self.isActiveWindow()
             will_close = visible and not active
             logger.debug(
-                "changeEvent: ActivationChange visible=%s active=%s just_shown=%s → closed.emit=%s",
-                visible, active, self._just_shown, will_close,
+                "changeEvent: ActivationChange visible=%s active=%s just_shown=%s pinned=%s → closed.emit=%s",
+                visible, active, self._just_shown, self._pinned, will_close,
             )
-            if will_close and not self._just_shown:
+            if will_close and not self._just_shown and not self._pinned:
                 self.closed.emit()
         super().changeEvent(event)
 

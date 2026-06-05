@@ -89,6 +89,19 @@ combo.setView(view)
 
 Tab focus ring: add `QTabBar::tab:focus { outline: none; }` and `setFocusPolicy(Qt.NoFocus)`.
 
+### QPushButton Focus Ring on UOS (chameleon style)
+
+`QPushButton` 获得 Tab 焦点后会绘制一个主题色矩形边框。对插件面板中所有按钮（无论静态创建还是动态创建），最简一劳永逸的修复是在 widget 的全局样式表中加一行：
+
+```python
+self.setStyleSheet("""
+    QPushButton:focus { outline: none; }
+    ...
+""")
+```
+
+这比逐个按钮 `setFocusPolicy(Qt.NoFocus)` 更可靠，因为它覆盖动态创建的按钮（如 `QListWidget` 中嵌入的卡片按钮）。
+
 ### Qt5 Color Format
 
 `{color}dd` (8-digit hex) is **not** supported in Qt5 QSS. Use `rgba(r, g, b, 0.8)` for transparency.

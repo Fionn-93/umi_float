@@ -23,24 +23,6 @@ from PyQt5.QtCore import (
     Qt,
     QPoint,
     QRect,
-    QSize,
-    QTimer,
-    pyqtSignal,
-    QEvent,
-)
-from PyQt5.QtGui import (
-    QColor,
-    QPixmap,
-    QPainter,
-    QPen,
-    QFont,
-    QCursor,
-    QImage,
-)
-from PyQt5.QtCore import (
-    Qt,
-    QPoint,
-    QRect,
     QRectF,
     QSize,
     QTimer,
@@ -58,9 +40,13 @@ from PyQt5.QtGui import (
     QImage,
     QBrush,
     QPalette,
+    QIcon,
 )
+from PyQt5.QtSvg import QSvgRenderer
 
 logger = logging.getLogger(__name__)
+
+_ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
 
 MAX_HISTORY = 50
 
@@ -430,6 +416,7 @@ class ColorPickerWidget(QWidget):
     """取色器主窗口"""
 
     closed = pyqtSignal()
+    pin_toggled = pyqtSignal(bool)
 
     def __init__(self, host_info: dict):
         super().__init__()
@@ -447,6 +434,7 @@ class ColorPickerWidget(QWidget):
         self._picker_active = False
         self._closed = False
         self._drag_pos = QPoint()
+        self._pinned = False
 
         self.setWindowFlags(
             Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
@@ -495,6 +483,18 @@ class ColorPickerWidget(QWidget):
         title_lbl.mouseReleaseEvent = self._make_title_drag(None)
         title_lay.addWidget(title_lbl)
         title_lay.addStretch()
+
+        pin_btn = QPushButton()
+        pin_btn.setObjectName("PinBtn")
+        pin_btn.setFixedSize(32, 32)
+        pin_btn.setCursor(Qt.PointingHandCursor)
+        pin_btn.setStyleSheet("background: transparent; border: none;")
+        pin_btn.setIcon(self._load_pin_icon(False))
+        pin_btn.enterEvent = lambda e: self._update_pin_hover(True)
+        pin_btn.leaveEvent = lambda e: self._update_pin_hover(False)
+        pin_btn.clicked.connect(self._on_pin_clicked)
+        self._pin_btn = pin_btn
+        title_lay.addWidget(pin_btn)
 
         close_btn = QPushButton("✕")
         close_btn.setObjectName("CloseBtn")
@@ -662,6 +662,7 @@ class ColorPickerWidget(QWidget):
         accent = self._accent_color
         ar, ag, ab = self._ar, self._ag, self._ab
         self.setStyleSheet(f"""
+            QPushButton:focus {{ outline: none; }}
             #MainContainer {{
                 background: #ffffff;
                 border: 1px solid #e5e7eb;
@@ -839,6 +840,7 @@ class ColorPickerWidget(QWidget):
                 and not self.isActiveWindow()
                 and not self._picker_active
                 and not self._closed
+                and not self._pinned
             ):
                 self._closed = True
                 self.closed.emit()
@@ -853,6 +855,38 @@ class ColorPickerWidget(QWidget):
         if event.buttons() == Qt.LeftButton:
             self.move(event.globalPos() - self._drag_pos)
             event.accept()
+
+    def _load_pin_icon(self, filled: bool, color=None) -> QIcon:
+        name = "pushpin-fill" if filled else "pushpin-line"
+        svg_path = _ASSETS_DIR / f"{name}.svg"
+        if color is None:
+            color = QColor(self._accent_color) if filled else QColor("#86868b")
+        elif isinstance(color, str):
+            color = QColor(color)
+        app = QApplication.instance()
+        dpr = app.devicePixelRatio() if app else 1.0
+        icon_size = int(16 * dpr)
+        pixmap = QPixmap(icon_size, icon_size)
+        pixmap.fill(Qt.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.Antialiasing)
+        QSvgRenderer(str(svg_path)).render(painter)
+        painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+        painter.fillRect(pixmap.rect(), color)
+        painter.end()
+        pixmap.setDevicePixelRatio(dpr)
+        return QIcon(pixmap)
+
+    def _update_pin_hover(self, hovered: bool):
+        if self._pinned:
+            return
+        color = "#1d1d1f" if hovered else "#86868b"
+        self._pin_btn.setIcon(self._load_pin_icon(False, color))
+
+    def _on_pin_clicked(self):
+        self._pinned = not self._pinned
+        self._pin_btn.setIcon(self._load_pin_icon(self._pinned))
+        self.pin_toggled.emit(self._pinned)
 
     def _on_close_clicked(self):
         self.closed.emit()

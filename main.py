@@ -110,6 +110,7 @@ class Application:
         self.plugin_panel = PluginPanel()
         self.tray_icon = TrayIcon()
         self.settings_dialog = None
+        self._independent_widgets = {}
 
         # 连接信号
         self.tray_icon.show_hide_requested.connect(self._toggle_float_widget)
@@ -392,15 +393,30 @@ class Application:
             self.plugin_panel.show_panel(self.float_widget)
 
     def _show_independent_widget(self, plugin_id: str, widget_class, host_info: dict):
-        """以独立窗口方式显示 widget 插件"""
+        """以独立窗口方式显示 widget 插件（支持多面板和钉住）"""
+        if plugin_id in self._independent_widgets:
+            logger.info(
+                "_show_independent_widget: plugin_id=%s 已存在，激活窗口",
+                plugin_id,
+            )
+            w = self._independent_widgets[plugin_id]
+            w.raise_()
+            w.activateWindow()
+            return
+
         logger.info("_show_independent_widget: plugin_id=%s", plugin_id)
         try:
-            self._independent_widget = widget_class(host_info)
+            widget = widget_class(host_info)
             logger.info("_show_independent_widget: widget 构造成功")
         except Exception as e:
             logger.error("_show_independent_widget: widget 构造异常: %s", e)
             return
-        self._independent_widget.closed.connect(self._on_independent_widget_closed)
+        widget.closed.connect(lambda pid=plugin_id: self._on_independent_widget_closed(pid))
+        if hasattr(widget, "pin_toggled"):
+            widget.pin_toggled.connect(
+                lambda pinned, pid=plugin_id: self._on_pin_toggled(pid, pinned)
+            )
+        self._independent_widgets[plugin_id] = widget
 
         anchor = self.float_widget
         anchor_pos = anchor.mapToGlobal(QPoint(0, 0))
@@ -410,10 +426,10 @@ class Application:
 
         x = anchor_pos.x() + anchor_size.width() + 16
         y = anchor_pos.y()
-        if x + self._independent_widget.width() > screen_rect.right():
-            x = anchor_pos.x() - self._independent_widget.width() - 16
-        if y + self._independent_widget.height() > screen_rect.bottom():
-            y = screen_rect.bottom() - self._independent_widget.height()
+        if x + widget.width() > screen_rect.right():
+            x = anchor_pos.x() - widget.width() - 16
+        if y + widget.height() > screen_rect.bottom():
+            y = screen_rect.bottom() - widget.height()
         if x < screen_rect.left():
             x = screen_rect.left()
         if y < screen_rect.top():
@@ -423,23 +439,30 @@ class Application:
             "_show_independent_widget: 显示 widget, pos=(%d,%d), size=%dx%d, screen=%s",
             x,
             y,
-            self._independent_widget.width(),
-            self._independent_widget.height(),
+            widget.width(),
+            widget.height(),
             screen_rect,
         )
         self.float_widget.hide()
-        self._independent_widget.move(x, y)
-        self._independent_widget.show()
-        self._independent_widget.raise_()
-        self._independent_widget.activateWindow()
+        widget.move(x, y)
+        widget.show()
+        widget.raise_()
+        widget.activateWindow()
 
-    def _on_independent_widget_closed(self):
+    def _on_independent_widget_closed(self, plugin_id: str):
         """独立 widget 关闭后恢复浮球"""
-        logger.info("_on_independent_widget_closed: 恢复浮球")
-        if hasattr(self, "_independent_widget") and self._independent_widget:
-            self._independent_widget.deleteLater()
-            self._independent_widget = None
-        self.float_widget.show()
+        logger.info("_on_independent_widget_closed: plugin_id=%s", plugin_id)
+        widget = self._independent_widgets.pop(plugin_id, None)
+        if widget:
+            widget.deleteLater()
+        if not self._independent_widgets:
+            self.float_widget.show()
+
+    def _on_pin_toggled(self, plugin_id: str, pinned: bool):
+        """钉住状态变化：恢复浮球但不销毁面板"""
+        logger.info("_on_pin_toggled: plugin_id=%s, pinned=%s", plugin_id, pinned)
+        if pinned:
+            self.float_widget.show()
 
     def _on_plugin_panel_closed(self):
         """插件面板关闭后恢复浮球"""
