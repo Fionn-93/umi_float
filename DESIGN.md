@@ -20,7 +20,7 @@
 
 ### 2.1 强调色（应用主题）
 - **动态获取**：`get_current_accent_color()` — 从用户选择的预设主题派生
-- **默认值**：`#2CA7E8`（Deepin 主题）
+- **默认值**：`#7B61FF`（薰衣草紫）
 - **用途**：按钮、选中状态、聚焦边框、进度条、悬浮球、面板等全部 UI 控件
 - **来源**：应用设置 → 个性化 → 主题预设
 - **切换时实时刷新**：主题变更后所有对话框同步更新样式
@@ -31,23 +31,22 @@
 
 | 主题键 | 显示名称 | 颜色值 | 分类 |
 |--------|----------|--------|------|
-| `deepin` | Deepin (默认) | `#2CA7E8` | 经典/原生 |
-| `macos` | macOS Blue | `#007AFF` | 经典/原生 |
-| `github` | GitHub Green | `#2EA44F` | 经典/原生 |
 | `lavender` | 薰衣草紫 | `#7B61FF` | 现代感/清新 |
 | `coral` | 珊瑚红 | `#FF6B6B` | 现代感/清新 |
-| `forest` | 森林绿 | `#4CAF50` | 现代感/清新 |
 | `sunset` | 夕阳橙 | `#FF9F43` | 现代感/清新 |
 | `rose` | 玫瑰粉 | `#FF85A2` | 现代感/清新 |
-| `steam` | Steam Dark | `#1B2838` | 沉稳/工具 |
-| `spotify` | Spotify Green | `#1DB954` | 沉稳/工具 |
-| `nvidia` | NVIDIA Green | `#76B900` | 沉稳/工具 |
+| `forest` | 森林绿 | `#4CAF50` | 现代感/清新 |
+| `matcha` | 抹茶绿 | `#8BC34A` | 现代感/清新 |
+| `azure` | 蔚蓝 | `#4FC3F7` | 现代感/清新 |
+| `indigo` | 靛蓝 | `#5C6BC0` | 现代感/清新 |
+| `pearl` | 珍珠白 | `#F5F5F7` | 沉稳/工具 |
+| `ebony` | 乌木黑 | `#2C2C2E` | 沉稳/工具 |
 
 **使用方式**：
 ```python
 from utils.theme_colors import PRESET_THEMES, DEFAULT_THEME, theme_from_key
 
-colors = theme_from_key('deepin')
+colors = theme_from_key('lavender')
 ```
 
 ### 2.3 文字颜色

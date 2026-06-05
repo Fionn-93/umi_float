@@ -13,6 +13,8 @@ Umi-Float 是一款面向 Deepin / UOS Linux 桌面环境的轻量级悬浮工�
   - **时钟模式** — 秒针进度环 + 数字时钟，100ms 刷新
   - **性能模式** — 内存占用进度环（绿/黄/红三档）+ 实时下行网速
   - **天气模式** — 当前温度 + 天气描述 + 动态图标，30 分钟自动刷新
+- 滚轮上下滚动循环切换显示模式
+- 贴边胶囊模式：拖至屏幕边缘自动缩为窄条，悬停展开
 - 可调参数：尺寸（32–128px）、透明度（0.1–1.0）
 - 位置自动记忆，下次启动恢复
 
@@ -51,10 +53,13 @@ Umi-Float 是一款面向 Deepin / UOS Linux 桌面环境的轻量级悬浮工�
 
 | 扩展 | 类型 | 说明 |
 |------|------|------|
-| 计算器 | command | 打开 Deepin 计算器 |
+| 深度计算器 | command | 打开 Deepin 计算器（玲珑应用） |
 | 截图工具 | command | 调用 Deepin 截图 DBus 服务 |
+| 控制中心 | command | 打开 Deepin 控制中心 |
+| 文件管理器 | command | 打开 Deepin 文件管理器（新窗口） |
 | 剪切板历史 | widget | 独立窗口，SQLite 存储，支持文本/图片/文件历史 |
 | 取色器 | widget | 独立窗口，从屏幕任意位置拾取颜色 |
+| 性能监视器 | widget | 独立窗口，实时显示 CPU/内存/网络详细信息 |
 
 ### 系统集成
 
@@ -122,10 +127,13 @@ umi_float/
 │   ├── arrow-go-back-line-black.svg
 │   └── Weather/                 # 31 套天气 SVG 图标
 ├── extensions/                 # 内置扩展
-│   ├── calculator/             # 计算器
-│   ├── screenshot/             # 截图工具
-│   ├── clipboard/              # 剪切板历史（widget）
-│   └── color-picker/           # 取色器（widget）
+│   ├── deepin-calculator/       # 深度计算器（玲珑应用）
+│   ├── screenshot/              # 截图工具
+│   ├── dde-control-center/      # 控制中心
+│   ├── dde-file-manager/        # 文件管理器
+│   ├── clipboard/               # 剪切板历史（widget）
+│   ├── color-picker/            # 取色器（widget）
+│   └── performance-monitor/     # 性能监视器（widget）
 ├── packaging/                  # 打包配置
 │   ├── DEBIAN/control          # deb 包元数据
 │   ├── DEBIAN/postinst         # 安装后脚本
@@ -160,13 +168,13 @@ PYTHONPATH=$(pwd):$PYTHONPATH python3 main.py
 ### 构建 deb 包
 
 ```bash
-bash scripts/build-deb.sh 1.0.0
+bash scripts/build-deb.sh 1.0.2
 ```
 
-生成 `umi-float_1.0.0_all.deb`，安装方式：
+生成 `umi-float_1.0.2_all.deb`，安装方式：
 
 ```bash
-sudo dpkg -i umi-float_1.0.0_all.deb
+sudo dpkg -i umi-float_1.0.2_all.deb
 ```
 
 ## 扩展开发
@@ -246,9 +254,10 @@ def create_widget(host_info: dict):
 
 ## 开发计划
 
-### v1.0.0 - 当前版本
+### v1.0.2 - 当前版本
 
-- [x] 悬浮球 + 拖动 + 边缘吸附
+- [x] 悬浮球 + 拖动 + 边缘吸附 + 贴边胶囊模式
+- [x] 滚轮循环切换显示模式
 - [x] 三种显示模式（时钟 / 性能 / 天气）
 - [x] 10 种主题预设 + 自动调色板派生
 - [x] 环形面板 + 展开/收起动画
@@ -258,7 +267,7 @@ def create_widget(host_info: dict):
 - [x] 扩展管理（拖拽排序、启用/禁用、新建/编辑/删除）
 - [x] 图标选择器（系统图标 + 本地上传）
 - [x] 应用选择器（扫描系统 .desktop 文件）
-- [x] 内置扩展（计算器、截图、剪切板历史、取色器）
+- [x] 内置扩展（深度计算器、截图、控制中心、文件管理器、剪切板历史、取色器、性能监视器）
 - [x] Widget 插件系统 + 独立窗口模式
 - [x] 导入插件包（.zip）
 - [x] 和风天气 + 自动 IP 定位
@@ -274,7 +283,7 @@ def create_widget(host_info: dict):
 
 ## 注意事项
 
-1. **Deepin/UOS 优化**：项目在 Deepin 25 上测试，使用 Deepin 特有的 DBus 服务（Screenshot、Display1）
+1. **Deepin/UOS 优化**：项目在 Deepin 25 上测试，使用 Deepin 特有的 DBus 服务（Screenshot、Display1）及玲珑应用（如深度计算器）
 2. **Python 版本**：推荐使用 Python 3.12+
 3. **天气功能**：需要配置和风天气 API Key
 4. **系统依赖**：`python3-pyqt5`、`python3-pyqt5.qtsvg`、`python3-requests`

@@ -46,13 +46,25 @@
 - 天气图标以半透明水印形式出现在背景
 - 集成和风天气（QWeather）v7 API，30 分钟自动刷新
 
+#### 模式切换
+
+- 滚轮上下滚动可循环切换显示模式（时钟 → 性能 → 天气）
+- 也可通过右键菜单或设置中心切换
+
+#### 贴边胶囊模式
+
+- 悬浮球拖动到屏幕边缘释放后自动进入贴边胶囊模式
+- 胶囊宽度 8px，垂直窄条显示，带缩放+透明度动画过渡
+- 鼠标悬停在胶囊上时展开为完整悬浮球，可拖动脱离贴边
+- 启动时若保存位置处于屏幕边缘，自动进入胶囊模式
+
 #### 可调参数
 
 | 参数 | 范围 | 说明 |
 |------|------|------|
 | 悬浮球大小 | 32–128 px | 拖动滑块实时调整 |
 | 透明度 | 0.1–1.0 | 控制悬浮球不透明度 |
-| 显示模式 | 时钟 / 性能 / 天气 | 右键菜单或设置中心切换 |
+| 显示模式 | 时钟 / 性能 / 天气 | 滚轮切换、右键菜单或设置中心 |
 | 边缘吸附 | 20 px 阈值 | 鼠标释放时自动吸附到最近屏幕边缘 |
 | 位置记忆 | — | 自动保存位置到配置文件，下次启动恢复 |
 
@@ -208,7 +220,10 @@
 | 操作 | 行为 |
 |------|------|
 | 左键点击（位移 < 10px） | 展开/收起面板（click 模式） |
-| 左键拖动（位移 ≥ 10px） | 移动浮球位置，释放后自动吸附屏幕边缘 |
+| 左键拖动（位移 ≥ 10px） | 移动浮球位置，释放后自动吸附屏幕边缘并进入胶囊模式 |
+| 滚轮滚动 | 循环切换显示模式（时钟 → 性能 → 天气） |
+| 鼠标进入胶囊 | 胶囊展开为完整悬浮球 |
+| 拖动脱离胶囊 | 从胶囊模式恢复为自由悬浮球 |
 | 鼠标进入 | 启动 200ms 定时器，到期后展开面板（hover 模式） |
 | 鼠标离开 | 取消定时器 |
 | 右键点击 | 显示上下文菜单：设置、显示模式切换、重启、退出 |
@@ -253,10 +268,13 @@
 
 | 扩展名 | 类型 | 执行命令 | 说明 |
 |--------|------|----------|------|
-| 计算器 | command | `deepin-calculator` | 打开 Deepin 计算器 |
+| 深度计算器 | command | `ll-cli run org.deepin.calculator -- deepin-calculator` | 打开 Deepin 计算器（玲珑应用） |
 | 截图工具 | command | `qdbus com.deepin.Screenshot /com/deepin/Screenshot com.deepin.Screenshot.StartScreenshot` | 调用 Deepin 截图 DBus 服务 |
+| 控制中心 | command | `dde-control-center --show` | 打开 Deepin 控制中心 |
+| 文件管理器 | command | `/usr/bin/dde-file-manager -n` | 打开 Deepin 文件管理器（新窗口） |
 | 剪切板历史 | widget | `clipboard`（entry: `create_widget`） | 独立窗口，SQLite 存储，支持文本/图片/文件历史 |
 | 取色器 | widget | `color_picker`（entry: `create_widget`） | 独立窗口，从屏幕任意位置拾取颜色 |
+| 性能监视器 | widget | `performance_monitor`（entry: `create_widget`） | 独立窗口，实时显示 CPU/内存/网络详细信息 |
 
 ### 4.3 扩展管理
 
@@ -355,7 +373,7 @@ def create_widget(host_info: dict):
 ```json
 {
   "plugin_overrides": {
-    "calculator": {
+    "deepin-calculator": {
       "icon": "my-custom-icon",
       "exec": "gnome-calculator"
     }
@@ -390,7 +408,7 @@ def create_widget(host_info: dict):
 │                  │  ClipboardWatcher / AutoStart │
 ├─────────────────────────────────────────────────┤
 │              extensions/                         │
-│   calculator │ screenshot │ clipboard │ color-picker │
+│   calculator │ screenshot │ clipboard │ color-picker │ performance-monitor │
 └─────────────────────────────────────────────────┘
 ```
 

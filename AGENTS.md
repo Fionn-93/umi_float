@@ -27,7 +27,7 @@ No CI, no pre-commit hooks, no task runner scripts. `tests/` contains only `__in
 
 ### Entrypoint
 
-`main.py` → `Application` creates `QApplication`, then `FloatWidget` (the ball), `PiePanel` (the popup menu), `TrayIcon`, and `PluginManager`. Signals wire them together.
+`main.py` → `Application` creates `QApplication`, then `FloatWidget` (the ball), `PiePanel` (the popup menu), `PluginPanel` (widget plugin host), `TrayIcon`, and `PluginManager`. Signals wire them together.
 
 ### Singletons (critical pattern)
 
@@ -124,9 +124,9 @@ All UI styling decisions follow `DESIGN.md` at project root. Key points:
 
 - Accent color: `get_current_accent_color()` (reads app theme from ConfigManager → `theme_from_key`). All UI uses the same app theme; system accent color is no longer used.
 - Each dialog/page defines a `get_xxx_style(accent_color)` function for its stylesheet.
-- `MidHeader` (group title) has built-in `padding: 20px 0 8px 4px` — set containing layout spacing to `0`, not `12`.
-- Page title: 16px Bold, color `#1d1d1f`.
-- Setting rows: `_SettingRow` with `setMinimumHeight(48)`, hover background `#fafafa`.
+- `Card` > `#sectionTitle` (group title) has `padding: 2px 4px 10px 4px`, uppercase + letter-spacing — set containing layout spacing to `2`, not `12`.
+- Page title (`#pageTitle`): 22px Bold, color `#1f2937`.
+- Setting rows (`SettingRow`): hover background `rgba(0,0,0,0.03)`, left container fixed width `240px`.
 
 ## Config
 
