@@ -25,6 +25,7 @@ HOVER_ZONE_V_EXTRA = 12
 EDGE_HOVER_CHECK_MS = 50
 EXPAND_SCALE_FROM = 0.5
 COLLAPSE_SCALE_TO = 0.5
+_DISPLAY_MODES = ["clock", "performance", "weather"]
 
 
 class FloatWidget(DraggableWidget):
@@ -586,6 +587,26 @@ class FloatWidget(DraggableWidget):
         if cfg.get("pie_expand_mode", "click") == "hover":
             self._hover_timer.start()
         super().enterEvent(event)
+
+    def wheelEvent(self, event):
+        if self._state == "capsule":
+            event.ignore()
+            return
+        delta = event.angleDelta().y()
+        if delta == 0:
+            event.ignore()
+            return
+        current = self.config.get()["display_mode"]
+        idx = _DISPLAY_MODES.index(current)
+        if delta > 0:
+            next_mode = _DISPLAY_MODES[(idx - 1) % len(_DISPLAY_MODES)]
+        else:
+            next_mode = _DISPLAY_MODES[(idx + 1) % len(_DISPLAY_MODES)]
+        self.config.update(display_mode=next_mode)
+        if self._state == "hover_expanded":
+            self._saved_display_mode = next_mode
+        self.ball.set_mode(next_mode)
+        event.accept()
 
     def leaveEvent(self, event):
         self._hover_timer.stop()
