@@ -435,6 +435,7 @@ class ColorPickerWidget(QWidget):
         self._closed = False
         self._drag_pos = QPoint()
         self._pinned = False
+        self._just_shown = False
 
         self.setWindowFlags(
             Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
@@ -831,7 +832,12 @@ class ColorPickerWidget(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        self._just_shown = True
+        QTimer.singleShot(300, self._clear_just_shown)
         self.activateWindow()
+
+    def _clear_just_shown(self):
+        self._just_shown = False
 
     def changeEvent(self, event):
         if event.type() == QEvent.ActivationChange:
@@ -841,6 +847,7 @@ class ColorPickerWidget(QWidget):
                 and not self._picker_active
                 and not self._closed
                 and not self._pinned
+                and not self._just_shown
             ):
                 self._closed = True
                 self.closed.emit()
