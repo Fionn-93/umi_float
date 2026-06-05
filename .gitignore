@@ -33,4 +33,6 @@ venv/
 .umi-float/
 packaging/
 *.deb
+*.zip
+extensions/color-picker/data/color_history.json
 .clawhub/
