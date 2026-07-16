@@ -1,0 +1,17 @@
+{
+    "appid": "org.deepin.umi-float",
+    "name": "umi-float",
+    "version": "1.0.2",
+    "arch": ["amd64", "arm64"],
+    "permissions": {
+        "autostart": false,
+        "notification": true,
+        "trayicon": true,
+        "clipboard": true,
+        "account": false,
+        "bluetooth": false,
+        "camera": false,
+        "audio_record": false,
+        "installed_apps": false
+    }
+}

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Categories=Utility
+Name=Umi-Float
+Name[zh_CN]=悬浮工具箱
+Comment=Desktop floating toolbox
+Comment[zh_CN]=桌面悬浮工具箱
+Exec=/opt/apps/org.deepin.umi-float/files/main.py
+Icon=org.deepin.umi-float
+Type=Application
+Terminal=false
+StartupNotify=true
+StartupWMClass=org.deepin.umi-float
