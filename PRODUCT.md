@@ -274,7 +274,6 @@
 | 文件管理器 | command | `/usr/bin/dde-file-manager -n` | 打开 Deepin 文件管理器（新窗口） |
 | 剪切板历史 | widget | `clipboard`（entry: `create_widget`） | 独立窗口，SQLite 存储，支持文本/图片/文件历史 |
 | 取色器 | widget | `color_picker`（entry: `create_widget`） | 独立窗口，从屏幕任意位置拾取颜色 |
-| 性能监视器 | widget | `performance_monitor`（entry: `create_widget`） | 独立窗口，实时显示 CPU/内存/网络详细信息 |
 
 ### 4.3 扩展管理
 
@@ -408,7 +407,7 @@ def create_widget(host_info: dict):
 │                  │  ClipboardWatcher / AutoStart │
 ├─────────────────────────────────────────────────┤
 │              extensions/                         │
-│   calculator │ screenshot │ clipboard │ color-picker │ performance-monitor │
+│   calculator │ screenshot │ clipboard │ color-picker │
 └─────────────────────────────────────────────────┘
 ```
 

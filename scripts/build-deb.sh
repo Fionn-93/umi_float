@@ -40,7 +40,6 @@ rsync -a \
     --exclude='requirements-dev.txt' \
     --exclude='.gitignore' \
     --exclude='.mypy_cache' \
-    --exclude='extensions/performance-monitor' \
     --exclude='.pytest_cache' \
     --exclude='.opencode' \
     --exclude='.claude' \

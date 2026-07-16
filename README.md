@@ -59,7 +59,6 @@ Umi-Float 是一款面向 Deepin / UOS Linux 桌面环境的轻量级悬浮工�
 | 文件管理器 | command | 打开 Deepin 文件管理器（新窗口） |
 | 剪切板历史 | widget | 独立窗口，SQLite 存储，支持文本/图片/文件历史 |
 | 取色器 | widget | 独立窗口，从屏幕任意位置拾取颜色 |
-| 性能监视器 | widget | 独立窗口，实时显示 CPU/内存/网络详细信息 |
 
 ### 系统集成
 
@@ -132,8 +131,7 @@ umi_float/
 │   ├── dde-control-center/      # 控制中心
 │   ├── dde-file-manager/        # 文件管理器
 │   ├── clipboard/               # 剪切板历史（widget）
-│   ├── color-picker/            # 取色器（widget）
-│   └── performance-monitor/     # 性能监视器（widget）
+│   └── color-picker/            # 取色器（widget）
 ├── packaging/                  # 打包配置
 │   ├── DEBIAN/control          # deb 包元数据
 │   ├── DEBIAN/postinst         # 安装后脚本
@@ -267,7 +265,7 @@ def create_widget(host_info: dict):
 - [x] 扩展管理（拖拽排序、启用/禁用、新建/编辑/删除）
 - [x] 图标选择器（系统图标 + 本地上传）
 - [x] 应用选择器（扫描系统 .desktop 文件）
-- [x] 内置扩展（深度计算器、截图、控制中心、文件管理器、剪切板历史、取色器、性能监视器）
+- [x] 内置扩展（深度计算器、截图、控制中心、文件管理器、剪切板历史、取色器）
 - [x] Widget 插件系统 + 独立窗口模式
 - [x] 导入插件包（.zip）
 - [x] 和风天气 + 自动 IP 定位
