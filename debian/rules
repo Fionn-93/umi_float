@@ -2,10 +2,10 @@
 %:
 	dh $@
 
-override_dh_auto_install:
-	DESTDIR=$(CURDIR)/debian/org.deepin.umi-float
-	APPROOT=$(DESTDIR)/opt/apps/org.deepin.umi-float
+DESTDIR := $(CURDIR)/debian/org.deepin.umi-float
+APPROOT := $(DESTDIR)/opt/apps/org.deepin.umi-float
 
+override_dh_auto_install:
 	mkdir -p $(APPROOT)/entries/applications
 	mkdir -p $(APPROOT)/entries/icons/hicolor/scalable/apps
 
