@@ -1,0 +1,15 @@
+Source: org.deepin.umi-float
+Section: utils
+Priority: optional
+Maintainer: Umi-Float Team <team@umi-float.dev>
+Build-Depends: debhelper-compat (= 13), rsync
+Standards-Version: 4.6.2
+Homepage: https://github.com/Fionn-93/umi_float
+
+Package: org.deepin.umi-float
+Architecture: all
+Depends: python3 (>=3.10), python3-pyqt5, python3-pyqt5.qtsvg, python3-requests
+Description: Desktop floating toolbox for Deepin/UOS
+ A lightweight floating ball that stays on top of the desktop,
+ providing quick access to system tools and extensions via a
+ radial pie panel.

@@ -1,0 +1,44 @@
+#!/usr/bin/make -f
+%:
+	dh $@
+
+override_dh_auto_install:
+	DESTDIR=$(CURDIR)/debian/org.deepin.umi-float
+	APPROOT=$(DESTDIR)/opt/apps/org.deepin.umi-float
+
+	mkdir -p $(APPROOT)/entries/applications
+	mkdir -p $(APPROOT)/entries/icons/hicolor/scalable/apps
+
+	cp packaging/entries/applications/org.deepin.umi-float.desktop \
+		$(APPROOT)/entries/applications/
+	cp assets/icon.png \
+		$(APPROOT)/entries/icons/hicolor/scalable/apps/org.deepin.umi-float.png
+	cp packaging/info $(APPROOT)/
+
+	rsync -a \
+		--exclude='.git' \
+		--exclude='__pycache__' \
+		--exclude='*.pyc' \
+		--exclude='venv' \
+		--exclude='.venv' \
+		--exclude='packaging' \
+		--exclude='*.deb' \
+		--exclude='tests' \
+		--exclude='requirements-dev.txt' \
+		--exclude='.gitignore' \
+		--exclude='.mypy_cache' \
+		--exclude='.pytest_cache' \
+		--exclude='.opencode' \
+		--exclude='.claude' \
+		--exclude='skills' \
+		--exclude='*.md' \
+		. $(APPROOT)/files/
+
+override_dh_auto_test:
+	true
+
+override_dh_shlibdeps:
+	true
+
+override_dh_strip:
+	true
