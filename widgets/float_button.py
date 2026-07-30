@@ -4,13 +4,15 @@
 支持胶囊变形（贴边性能监视器）
 """
 
-from PyQt5.QtWidgets import QLabel
+from PyQt5.QtWidgets import QLabel, QApplication
 from PyQt5.QtCore import (
     Qt, QTimer, QTime, QRect, QRectF, pyqtProperty,
+    QPropertyAnimation,
 )
 from PyQt5.QtGui import (
     QColor, QFont, QPainter, QPen, QIcon, QPixmap, QPainterPath,
 )
+from PyQt5.QtSvg import QSvgRenderer
 
 from core.config import get_config
 from utils.theme_colors import theme_from_key, DEFAULT_THEME
@@ -36,6 +38,16 @@ class FloatButton(QLabel):
 
         self._capsule_mode = False
         self._scale = 1.0
+
+        self._override_active = False
+        self._override_text = ""
+        self._override_progress = 0.0
+        self._override_icon_path = None
+        self._pomodoro_hidden = False
+        self._hovered = False
+        self._text_opacity = 1.0
+        self._fade_anim = QPropertyAnimation(self, b"text_opacity")
+        self._fade_anim.setDuration(1000)
 
         self._apply_theme()
 
@@ -79,6 +91,55 @@ class FloatButton(QLabel):
             self._fetch_weather()
         self._refresh_content()
 
+    def set_override(self, text: str, progress: float, icon_path: str = None):
+        self._override_text = text
+        self._override_progress = max(0.0, min(1.0, progress))
+        self._override_icon_path = icon_path
+        was_pomodoro = self._pomodoro_hidden
+        self._pomodoro_hidden = icon_path is not None and "tomato" in str(icon_path)
+        self._override_active = True
+        self._hovered = False
+
+        if self._pomodoro_hidden and not was_pomodoro:
+            self._text_opacity = 1.0
+            self._fade_anim.stop()
+            self._fade_anim.setStartValue(1.0)
+            self._fade_anim.setEndValue(0.25)
+            self._fade_anim.start()
+        elif not self._pomodoro_hidden and was_pomodoro:
+            self._text_opacity = 1.0
+            self._fade_anim.stop()
+        self.update()
+
+    def clear_override(self):
+        self._override_active = False
+        self._override_text = ""
+        self._override_progress = 0.0
+        self._override_icon_path = None
+        self._pomodoro_hidden = False
+        self._hovered = False
+        self._text_opacity = 1.0
+        self._fade_anim.stop()
+        self.update()
+
+    def enterEvent(self, event):
+        self._hovered = True
+        if self._pomodoro_hidden and self._override_active:
+            self._fade_anim.stop()
+            self._fade_anim.setStartValue(self._text_opacity)
+            self._fade_anim.setEndValue(1.0)
+            self._fade_anim.start()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._hovered = False
+        if self._pomodoro_hidden and self._override_active:
+            self._fade_anim.stop()
+            self._fade_anim.setStartValue(self._text_opacity)
+            self._fade_anim.setEndValue(0.25)
+            self._fade_anim.start()
+        super().leaveEvent(event)
+
     def _fetch_weather(self):
         config = get_config()
         cfg = config.get()
@@ -114,10 +175,21 @@ class FloatButton(QLabel):
 
     scale = pyqtProperty(float, _get_scale, _set_scale)
 
+    def _get_text_opacity(self):
+        return self._text_opacity
+
+    def _set_text_opacity(self, value):
+        self._text_opacity = value
+        self.update()
+
+    text_opacity = pyqtProperty(float, _get_text_opacity, _set_text_opacity)
+
     # -- painting --
 
     def paintEvent(self, event):
-        if self._capsule_mode:
+        if self._override_active and not self._capsule_mode:
+            self._paint_override_mode()
+        elif self._capsule_mode:
             self._paint_capsule_mode()
         else:
             if self._mode == "clock":
@@ -438,6 +510,106 @@ class FloatButton(QLabel):
         painter.drawEllipse(1, 1, radius * 2, radius * 2)
 
         painter.end()
+
+    def _paint_override_mode(self):
+        size = self.size
+        radius = size // 2 - 1
+        ring_width = max(3, int(size * 0.08))
+        drawing_radius = radius - ring_width // 2
+        ring_rect = QRect(
+            1 + ring_width // 2,
+            1 + ring_width // 2,
+            drawing_radius * 2,
+            drawing_radius * 2,
+        )
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        self._apply_scale_transform(painter)
+
+        opacity = int(get_config().get().get("opacity", 0.9) * 255)
+        bg = QColor(self.THEME_BG)
+        bg.setAlpha(opacity)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(bg)
+        painter.drawEllipse(1, 1, radius * 2, radius * 2)
+
+        track_color = QColor(self.THEME_TEXT)
+        track_color.setAlpha(40)
+        painter.setPen(QPen(track_color, ring_width, Qt.SolidLine, Qt.RoundCap))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawArc(ring_rect, 0, 360 * 16)
+
+        span_angle = int(self._override_progress * 360 * 16)
+        progress_color = QColor(self.THEME_TEXT)
+        progress_color.setAlpha(200)
+        painter.setPen(QPen(progress_color, ring_width, Qt.SolidLine, Qt.RoundCap))
+        painter.drawArc(ring_rect, 90 * 16, -span_angle)
+
+        if self._override_icon_path:
+            dpr = QApplication.instance().devicePixelRatio() if QApplication.instance() else 1.0
+            icon_size = int(size * 0.50)
+            src = QPixmap(int(icon_size * dpr), int(icon_size * dpr))
+            src.fill(Qt.transparent)
+            svg_painter = QPainter(src)
+            svg_painter.setRenderHint(QPainter.Antialiasing)
+            renderer = QSvgRenderer(self._override_icon_path)
+            renderer.render(svg_painter)
+            svg_painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+            svg_painter.fillRect(src.rect(), self.THEME_TEXT)
+            svg_painter.end()
+            src.setDevicePixelRatio(dpr)
+            painter.save()
+            painter.setOpacity(0.22)
+            painter.drawPixmap(
+                (size - icon_size) // 2, (size - icon_size) // 2,
+                icon_size, icon_size, src,
+            )
+            painter.restore()
+
+        painter.save()
+        painter.setOpacity(self._text_opacity)
+        self._draw_override_text(painter, size)
+        painter.restore()
+
+        border_pen = QPen(self.THEME_BORDER, 2)
+        painter.setPen(border_pen)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawEllipse(1, 1, radius * 2, radius * 2)
+
+        painter.end()
+
+    def _draw_override_text(self, painter, size):
+        text = self._override_text
+
+        parts = text.split(":")
+        if len(parts) == 3:
+            top_text = "%s:%s" % (parts[0], parts[1])
+            bottom_text = parts[2]
+        else:
+            top_text = parts[0] if len(parts) > 0 else ""
+            bottom_text = parts[1] if len(parts) > 1 else ""
+
+        top_size = max(8, int(size * 0.25))
+        bottom_size = max(6, int(size * 0.18))
+
+        font_top = QFont("", top_size, QFont.Bold)
+        painter.setFont(font_top)
+        painter.setPen(QPen(self.THEME_TEXT))
+        fm_top = painter.fontMetrics()
+
+        center_y = size // 2
+        top_height = fm_top.height()
+        top_rect = QRect(0, center_y - top_height + 4, size, top_height)
+        painter.drawText(top_rect, Qt.AlignCenter, top_text)
+
+        font_bottom = QFont("", bottom_size, QFont.Normal)
+        painter.setFont(font_bottom)
+        color_bottom = QColor(self.THEME_TEXT)
+        color_bottom.setAlpha(180)
+        painter.setPen(QPen(color_bottom))
+        bottom_rect = QRect(0, center_y - 2, size, top_height)
+        painter.drawText(bottom_rect, Qt.AlignCenter, bottom_text)
 
     def _apply_scale_transform(self, painter):
         if self._scale != 1.0:

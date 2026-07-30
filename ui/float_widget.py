@@ -35,6 +35,7 @@ class FloatWidget(DraggableWidget):
     show_menu = pyqtSignal()
     drag_started = pyqtSignal()
     hover_expand = pyqtSignal()
+    display_mode_changed = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -489,6 +490,12 @@ class FloatWidget(DraggableWidget):
         """拖动回调"""
         pass
 
+    def set_custom_display(self, text: str, progress: float, icon_path: str = None):
+        self.ball.set_override(text, progress, icon_path)
+
+    def clear_custom_display(self):
+        self.ball.clear_override()
+
     # -- mouse events --
 
     def mousePressEvent(self, event):
@@ -606,6 +613,7 @@ class FloatWidget(DraggableWidget):
         if self._state == "hover_expanded":
             self._saved_display_mode = next_mode
         self.ball.set_mode(next_mode)
+        self.display_mode_changed.emit(next_mode)
         event.accept()
 
     def leaveEvent(self, event):

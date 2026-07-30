@@ -48,6 +48,11 @@ class Application:
         self.state = get_state()
         self.plugin_manager = PluginManager()
 
+        self._custom_display_state = None
+        self._restore_timer = QTimer()
+        self._restore_timer.setSingleShot(True)
+        self._restore_timer.timeout.connect(self._restore_custom_display)
+
         from utils.clipboard_watcher import ClipboardWatcher
 
         ClipboardWatcher.get()
@@ -121,6 +126,7 @@ class Application:
         self.float_widget.show_menu.connect(self._show_context_menu)
         self.float_widget.drag_started.connect(self.drawer_panel.hide_panel)
         self.float_widget.hover_expand.connect(self._on_hover_expand)
+        self.float_widget.display_mode_changed.connect(self._on_float_display_mode_changed)
 
         self.drawer_panel.plugin_executed.connect(self._execute_plugin)
         self.drawer_panel.panel_closed.connect(self._on_panel_closed)
@@ -296,6 +302,7 @@ class Application:
         if mode and mode != self.config.get()["display_mode"]:
             self.config.update(display_mode=mode)
             self.float_widget.apply_settings()
+            self._on_float_display_mode_changed(mode)
 
     def _on_plugin_edit(self, plugin_id: str):
         """从面板右键编辑插件"""
@@ -378,7 +385,11 @@ class Application:
             "accent_color": get_current_accent_color(),
             "data_dir": data_dir,
             "app": QApplication.instance(),
+            "set_float_display": self._set_float_display,
+            "clear_float_display": self._clear_float_display,
         }
+        if plugin_id == "timer":
+            host_info["keep_float_visible"] = True
         logger.info(
             "_show_widget_panel: 显示 widget, name=%s, mode=%s",
             config.name,
@@ -400,6 +411,7 @@ class Application:
                 plugin_id,
             )
             w = self._independent_widgets[plugin_id]
+            w.show()
             w.raise_()
             w.activateWindow()
             return
@@ -443,7 +455,8 @@ class Application:
             widget.height(),
             screen_rect,
         )
-        self.float_widget.hide()
+        if not host_info.get("keep_float_visible", False):
+            self.float_widget.hide()
         widget.move(x, y)
         widget.show()
         widget.raise_()
@@ -467,6 +480,25 @@ class Application:
     def _on_plugin_panel_closed(self):
         """插件面板关闭后恢复浮球"""
         self.float_widget.show()
+
+    def _set_float_display(self, text: str, progress: float, icon_path: str = None):
+        self._custom_display_state = (text, progress, icon_path)
+        self._restore_timer.stop()
+        self.float_widget.set_custom_display(text, progress, icon_path)
+
+    def _clear_float_display(self):
+        self._custom_display_state = None
+        self._restore_timer.stop()
+        self.float_widget.clear_custom_display()
+
+    def _on_float_display_mode_changed(self, _new_mode: str):
+        if self._custom_display_state is not None:
+            self._restore_timer.start(30000)
+
+    def _restore_custom_display(self):
+        if self._custom_display_state is not None:
+            text, progress, icon_path = self._custom_display_state
+            self.float_widget.set_custom_display(text, progress, icon_path)
 
     def run(self):
         """运行应用"""
