@@ -1,0 +1,11 @@
+{
+  "name": "计时器",
+  "description": "番茄钟、倒计时、正计时三合一",
+  "icon": "icons/timer.png",
+  "exec": "timer",
+  "type": "widget",
+  "version": "1.0.0",
+  "entry": "create_widget",
+  "window_mode": "independent",
+  "enabled": true
+}
