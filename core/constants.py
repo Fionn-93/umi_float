@@ -36,6 +36,7 @@ DEFAULT_CONFIG = {
     "weather_api_host": "je693837aw.re.qweatherapi.com",
     "weather_api_key": "353d7e3f43b54a48afe7d9e57dca763e",
     "weather_location": "101010100",
+    "toggle_shortcut": "Alt+F",
     "position": {"x": 100, "y": 100},
     "plugin_overrides": {},
 }

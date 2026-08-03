@@ -18,6 +18,7 @@ class DraggableWidget(QWidget):
     def mousePressEvent(self, event):
         """鼠标按下事件"""
         if event.button() == Qt.LeftButton:
+            self.setFocus()
             self._dragging = True
             self._drag_position = event.globalPos() - self.frameGeometry().topLeft()
             event.accept()

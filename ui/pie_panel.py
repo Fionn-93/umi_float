@@ -365,6 +365,7 @@ class PiePanel(QWidget):
         self._collapse_done_timer = None
         self._is_expanded = False
         self._is_collapsing = False
+        self._is_animating = False
         self._panel_dragging = False
         self._panel_drag_offset = QPoint()
         self._pending_float_pos = None
@@ -372,6 +373,8 @@ class PiePanel(QWidget):
         self._shadow_timer = QTimer(self)
         self._shadow_timer.setInterval(16)
         self._shadow_timer.timeout.connect(self.update)
+
+        self._current_index = -1
 
         self._leave_timer = QTimer(self)
         self._leave_timer.setSingleShot(True)
@@ -388,6 +391,7 @@ class PiePanel(QWidget):
             self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setFixedSize(400, 400)
+        self.setFocusPolicy(Qt.StrongFocus)
 
     def _setup_ui(self):
         """设置UI"""
@@ -488,6 +492,7 @@ class PiePanel(QWidget):
             self._buttons.append(btn)
 
         print(f"PiePanel: Created {len(self._buttons)} plugin buttons")
+        self._current_index = -1
 
     def _on_plugin_clicked(self, plugin_id: str):
         """插件点击"""
@@ -511,6 +516,58 @@ class PiePanel(QWidget):
         else:
             self.plugin_edit_requested.emit(payload)
             self.hide_panel()
+
+    def _update_selection(self, new_index: int):
+        """更新键盘选中高亮"""
+        if self._current_index == new_index:
+            return
+        if 0 <= self._current_index < len(self._buttons):
+            old_btn = self._buttons[self._current_index]
+            old_btn._update_style(False)
+        self._current_index = new_index
+        if 0 <= new_index < len(self._buttons):
+            self._buttons[new_index]._update_style(True)
+
+    def keyPressEvent(self, event):
+        if not self._is_expanded or self._is_collapsing or self._is_animating:
+            super().keyPressEvent(event)
+            return
+        if not self._buttons:
+            return
+
+        key = event.key()
+
+        if key in (Qt.Key_Up, Qt.Key_Down, Qt.Key_Tab):
+            if key == Qt.Key_Up or (
+                key == Qt.Key_Tab and event.modifiers() & Qt.ShiftModifier
+            ):
+                delta = -1
+            else:
+                delta = 1
+
+            if self._current_index < 0:
+                new_index = 0 if delta == 1 else len(self._buttons) - 1
+            else:
+                new_index = (self._current_index + delta) % len(self._buttons)
+            self._update_selection(new_index)
+            event.accept()
+
+        elif key in (Qt.Key_Return, Qt.Key_Enter):
+            if 0 <= self._current_index < len(self._buttons):
+                plugin_id = self._buttons[self._current_index].plugin_id
+                self._on_plugin_clicked(plugin_id)
+            event.accept()
+
+        elif key == Qt.Key_Escape:
+            self.hide_panel()
+            event.accept()
+
+        elif key == Qt.Key_F and (event.modifiers() & Qt.AltModifier):
+            self.hide_panel()
+            event.accept()
+
+        else:
+            super().keyPressEvent(event)
 
     def enter_preview_mode(self, parent_widget):
         """进入预览模式：展开面板供设置预览，禁用交互"""
@@ -633,6 +690,8 @@ class PiePanel(QWidget):
                 )
                 btn.show()
             self.show()
+            self.activateWindow()
+            self.setFocus()
             self._expand_animations()
         else:
             for i, btn in enumerate(self._buttons):
@@ -645,6 +704,8 @@ class PiePanel(QWidget):
             for btn in self._buttons:
                 btn._hover_enabled = not self._preview_mode
             self.show()
+            self.activateWindow()
+            self.setFocus()
             self._apply_mask()
             self.update()
 
@@ -764,6 +825,7 @@ class PiePanel(QWidget):
         self._is_animating = False
         self._shadow_timer.stop()
         self.update()
+        self.setFocus()
 
         for btn in self._buttons:
             btn._hover_enabled = not self._preview_mode
@@ -910,6 +972,7 @@ class PiePanel(QWidget):
             return
         self._is_expanded = False
         self._is_collapsing = False
+        self._is_animating = False
         super().hideEvent(event)
 
     def paintEvent(self, event):

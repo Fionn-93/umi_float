@@ -5,7 +5,7 @@ Widget 插件独立面板
 from pathlib import Path
 
 from PyQt5.QtWidgets import QWidget, QVBoxLayout
-from PyQt5.QtCore import Qt, pyqtSignal, QPoint
+from PyQt5.QtCore import Qt, pyqtSignal, QPoint, QEvent
 from PyQt5.QtGui import QColor
 
 from core.config import get_config
@@ -25,12 +25,14 @@ class PluginPanel(QWidget):
         self._host_info = {}
         self._setup_window()
         self._build_ui()
+        self.installEventFilter(self)
 
     def _setup_window(self):
         self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setMinimumSize(320, 400)
         self.resize(360, 480)
+        self.setFocusPolicy(Qt.StrongFocus)
 
     def _build_ui(self):
         self._layout = QVBoxLayout(self)
@@ -86,6 +88,8 @@ class PluginPanel(QWidget):
         self.move(x, y)
         self.show()
         self.raise_()
+        self.activateWindow()
+        self.setFocus()
 
     def hide_panel(self):
         if self._plugin_widget:
@@ -107,6 +111,16 @@ class PluginPanel(QWidget):
         if event.button() == Qt.LeftButton:
             pass
         super().mousePressEvent(event)
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.KeyPress:
+            if event.key() == Qt.Key_Escape:
+                self.hide_panel()
+                return True
+            if event.key() == Qt.Key_F and (event.modifiers() & Qt.AltModifier):
+                self.hide_panel()
+                return True
+        return super().eventFilter(obj, event)
 
 
 class _PanelHeader(QWidget):

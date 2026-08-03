@@ -6,7 +6,7 @@ Umi-Float 主入口
 import logging
 import sys
 from PyQt5.QtWidgets import QApplication, QMenu, QAction, QActionGroup, QDialog
-from PyQt5.QtCore import QTimer, QPoint
+from PyQt5.QtCore import Qt, QTimer, QPoint
 from PyQt5.QtGui import QIcon
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ from ui.plugin_panel import PluginPanel
 from ui.settings_dialog import SettingsDialog
 from ui.plugin_edit_dialog import PluginEditDialog
 from plugins.plugin_manager import PluginManager
+from utils.global_hotkey import GlobalHotkeyManager
 
 
 class Application:
@@ -116,6 +117,8 @@ class Application:
         self.tray_icon = TrayIcon()
         self.settings_dialog = None
         self._independent_widgets = {}
+        self.global_hotkeys = GlobalHotkeyManager()
+        self.app.aboutToQuit.connect(self.global_hotkeys.unregister_all)
 
         # 连接信号
         self.tray_icon.show_hide_requested.connect(self._toggle_float_widget)
@@ -126,7 +129,9 @@ class Application:
         self.float_widget.show_menu.connect(self._show_context_menu)
         self.float_widget.drag_started.connect(self.drawer_panel.hide_panel)
         self.float_widget.hover_expand.connect(self._on_hover_expand)
-        self.float_widget.display_mode_changed.connect(self._on_float_display_mode_changed)
+        self.float_widget.display_mode_changed.connect(
+            self._on_float_display_mode_changed
+        )
 
         self.drawer_panel.plugin_executed.connect(self._execute_plugin)
         self.drawer_panel.panel_closed.connect(self._on_panel_closed)
@@ -135,6 +140,14 @@ class Application:
         self.drawer_panel.plugin_disable_requested.connect(self._on_plugin_disable)
 
         self.plugin_panel.closed.connect(self._on_plugin_panel_closed)
+        self.float_widget.alt_f_pressed.connect(self._on_toggle_shortcut)
+
+        self.global_hotkeys.toggle_shortcut_triggered.connect(self._on_toggle_shortcut)
+        self.global_hotkeys.update(
+            {
+                "toggle": self.config.get().get("toggle_shortcut", "Alt+F"),
+            }
+        )
 
         # 加载插件到面板
         self.plugin_manager.initialize()
@@ -203,10 +216,17 @@ class Application:
                 self.drawer_panel.refresh_preview_layout(self.float_widget)
             else:
                 self.drawer_panel.enter_preview_mode(self.float_widget)
+        elif target == "shortcuts":
+            self.global_hotkeys.update(
+                {
+                    "toggle": self.config.get().get("toggle_shortcut", "Alt+F"),
+                }
+            )
 
     def _quit(self):
         """退出应用"""
         print("正在退出...")
+        self.global_hotkeys.unregister_all()
         self.tray_icon.hide()
         self.app.quit()
 
@@ -423,7 +443,9 @@ class Application:
         except Exception as e:
             logger.error("_show_independent_widget: widget 构造异常: %s", e)
             return
-        widget.closed.connect(lambda pid=plugin_id: self._on_independent_widget_closed(pid))
+        widget.closed.connect(
+            lambda pid=plugin_id: self._on_independent_widget_closed(pid)
+        )
         if hasattr(widget, "pin_toggled"):
             widget.pin_toggled.connect(
                 lambda pinned, pid=plugin_id: self._on_pin_toggled(pid, pinned)
@@ -480,6 +502,14 @@ class Application:
     def _on_plugin_panel_closed(self):
         """插件面板关闭后恢复浮球"""
         self.float_widget.show()
+
+    def _on_toggle_shortcut(self):
+        """快捷键切换面板显示"""
+        if self.drawer_panel.isVisible():
+            self.drawer_panel.hide_panel()
+        elif self.float_widget.isVisible() and self.float_widget._state == "normal":
+            self.float_widget.hide()
+            self.drawer_panel.show_panel(self.float_widget)
 
     def _set_float_display(self, text: str, progress: float, icon_path: str = None):
         self._custom_display_state = (text, progress, icon_path)

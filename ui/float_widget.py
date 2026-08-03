@@ -5,8 +5,14 @@
 
 from PyQt5.QtWidgets import QWidget, QVBoxLayout
 from PyQt5.QtCore import (
-    Qt, QRect, pyqtSignal, QTimer, QPoint,
-    QPropertyAnimation, QParallelAnimationGroup, QEasingCurve,
+    Qt,
+    QRect,
+    pyqtSignal,
+    QTimer,
+    QPoint,
+    QPropertyAnimation,
+    QParallelAnimationGroup,
+    QEasingCurve,
 )
 from PyQt5.QtGui import QCursor
 from core.config import get_config
@@ -36,6 +42,7 @@ class FloatWidget(DraggableWidget):
     drag_started = pyqtSignal()
     hover_expand = pyqtSignal()
     display_mode_changed = pyqtSignal(str)
+    alt_f_pressed = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -83,6 +90,7 @@ class FloatWidget(DraggableWidget):
         """设置窗口属性"""
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setFocusPolicy(Qt.StrongFocus)
         opacity = self.config.get()["opacity"]
         self.setWindowOpacity(opacity)
 
@@ -110,7 +118,9 @@ class FloatWidget(DraggableWidget):
 
     def _check_startup_edge(self):
         edge = self.snapper.get_snapped_edge(
-            self.pos(), (self.width(), self.height()), self.screen_rect,
+            self.pos(),
+            (self.width(), self.height()),
+            self.screen_rect,
         )
         if edge in ("left", "right"):
             self._enter_capsule_mode(edge, animated=False)
@@ -504,6 +514,7 @@ class FloatWidget(DraggableWidget):
             if self._state == "capsule":
                 event.accept()
                 return
+            self.setFocus()
             self._press_pos = event.globalPos()
             self._drag_notified = False
             self._hover_timer.stop()
@@ -595,6 +606,13 @@ class FloatWidget(DraggableWidget):
             self._hover_timer.start()
         super().enterEvent(event)
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_F and (event.modifiers() & Qt.AltModifier):
+            self.alt_f_pressed.emit()
+            event.accept()
+        else:
+            super().keyPressEvent(event)
+
     def wheelEvent(self, event):
         if self._state == "capsule":
             event.ignore()
@@ -620,7 +638,11 @@ class FloatWidget(DraggableWidget):
         self._hover_timer.stop()
         self._leave_check_timer.stop()
         self._collapse_pending = False
-        if self._state == "hover_expanded" and not self._dragging and not self._menu_visible:
+        if (
+            self._state == "hover_expanded"
+            and not self._dragging
+            and not self._menu_visible
+        ):
             self._collapse_to_capsule()
             return
         super().leaveEvent(event)
