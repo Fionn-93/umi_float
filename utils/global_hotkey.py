@@ -32,7 +32,12 @@ _SHIFT_MASK = 1 << 0
 _LOCK_MASK = 1 << 1
 _CONTROL_MASK = 1 << 2
 _MOD1_MASK = 1 << 3  # Alt
+_MOD2_MASK = 1 << 4  # NumLock
+_MOD3_MASK = 1 << 5  # ScrollLock
 _MOD4_MASK = 1 << 6  # Super/Win
+
+# XKB 常量
+_XkbUseCoreKbd = 0x0100
 
 # XCB 事件类型
 _XCB_KEY_PRESS = 2
@@ -67,6 +72,15 @@ if _libX11 is not None:
     _libX11.XFlush.argtypes = [ctypes.c_void_p]
     _libX11.XCloseDisplay.restype = ctypes.c_int
     _libX11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+
+    # XKB 扩展：忽略锁定类修饰键以匹配 grab
+    _libX11.XkbSetIgnoreLockMods.restype = ctypes.c_int
+    _libX11.XkbSetIgnoreLockMods.argtypes = [
+        ctypes.c_void_p,  # Display*
+        ctypes.c_uint,  # device_spec (XkbUseCoreKbd)
+        ctypes.c_uint,  # affect_mask
+        ctypes.c_uint,  # masks_to_ignore
+    ]
 
 
 class _XCBKeyPressEvent(ctypes.Structure):
@@ -122,8 +136,9 @@ _MOD_MASKS = {
 }
 
 # 应忽略的锁定类修饰键组合
-# 注意：只包含 CapsLock（LockMask），不包含 NumLock/Mod2Mask 等，
-# 因为对同一 keycode 注册多个 XGrabKey 会导致 X11 服务器不发送事件。
+# 通过 XkbSetIgnoreLockMods 让 X 服务器在 grab 匹配时自动忽略
+# LockMask(CapsLock)、Mod2Mask(NumLock)、Mod3Mask(ScrollLock)，
+# 因此只需注册 base modifier 和 CapsLock 两种组合即可覆盖所有锁定键状态。
 _INSENSITIVE_MODS = [0, _LOCK_MASK]
 
 
@@ -222,6 +237,11 @@ class GlobalHotkeyManager(QObject):
             logger.warning("无法打开 X11 显示，全局快捷键不可用")
             return False
         self._root_window = _libX11.XDefaultRootWindow(self._display)
+        # 通过 XKB 扩展让 X 服务器在 grab 匹配时忽略 CapsLock/NumLock/ScrollLock
+        _lock_mods = _LOCK_MASK | _MOD2_MASK | _MOD3_MASK
+        _libX11.XkbSetIgnoreLockMods(
+            self._display, _XkbUseCoreKbd, _lock_mods, _lock_mods
+        )
         return True
 
     def _parse_shortcut(self, token: str):

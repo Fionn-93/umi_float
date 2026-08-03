@@ -278,6 +278,8 @@ class Application:
             self.drawer_panel._pending_float_pos = None
         self.drawer_panel.set_hover_mode(False)
         self.float_widget.show()
+        self.float_widget.activateWindow()
+        self.float_widget.raise_()
 
     def _show_context_menu(self):
         """显示右键菜单"""
@@ -504,12 +506,13 @@ class Application:
         self.float_widget.show()
 
     def _on_toggle_shortcut(self):
-        """快捷键切换面板显示"""
+        """快捷键展开面板（关闭请按 Esc）"""
         if self.drawer_panel.isVisible():
-            self.drawer_panel.hide_panel()
-        elif self.float_widget.isVisible() and self.float_widget._state == "normal":
-            self.float_widget.hide()
-            self.drawer_panel.show_panel(self.float_widget)
+            return
+        if not self.float_widget.isVisible():
+            return
+        self.float_widget.hide()
+        self.drawer_panel.show_panel(self.float_widget)
 
     def _set_float_display(self, text: str, progress: float, icon_path: str = None):
         self._custom_display_state = (text, progress, icon_path)
