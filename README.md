@@ -59,6 +59,7 @@ Umi-Float 是一款面向 Deepin / UOS Linux 桌面环境的轻量级悬浮工�
 | 文件管理器 | command | 打开 Deepin 文件管理器（新窗口） |
 | 剪切板历史 | widget | 独立窗口，SQLite 存储，支持文本/图片/文件历史 |
 | 取色器 | widget | 独立窗口，从屏幕任意位置拾取颜色 |
+| 计时器 | widget | 独立窗口，番茄钟/倒计时/正计时，进度环实时显示到浮球 |
 
 ### 系统集成
 
@@ -66,6 +67,21 @@ Umi-Float 是一款面向 Deepin / UOS Linux 桌面环境的轻量级悬浮工�
 - **右键菜单** — 悬浮球右键：设置、显示模式切换、重启、退出
 - **自动定位** — 首次启动自动 IP 定位配置天气城市
 - **剪贴板监听** — 全局剪贴板历史记录（文本/图片/文件，最多 100 条）
+
+### 计时器
+
+- 内置计时器扩展，支持三种计时模式：
+  - **番茄钟** — 工作/休息循环，结束时桌面通知，预设快速选择（15/25/45 分钟工作，5/10/15 分钟休息）
+  - **倒计时** — 1–180 分钟自定义倒计时，预设快速选择（5/10/30 分钟）
+  - **正计时** — 精确到秒的计时器
+- 运行时浮球实时显示进度环 + 剩余时间 + 分阶段图标（番茄/咖啡杯/沙漏/秒表）
+- 番茄钟空闲态自动淡入淡出动画（pomodoro fade）
+
+### 全局快捷键
+
+- **Alt+F** 全局快捷键展开/隐藏面板（可自定义）
+- 基于 X11 XGrabKey 实现，支持 CapsLock/NumLock/ScrollLock 锁定修饰键
+- 面板键盘导航：方向键/Tab 循环切换、Enter 激活、Esc 关闭
 
 ## 技术栈
 
@@ -116,7 +132,8 @@ umi_float/
 │   ├── ip_location.py         # IP 地理定位
 │   ├── clipboard_watcher.py  # 剪贴板历史监听
 │   ├── desktop_entry.py      # .desktop 文件解析
-│   └── autostart.py           # XDG 自启管理
+│   ├── autostart.py           # XDG 自启管理
+│   └── global_hotkey.py      # X11 全局快捷键（XGrabKey）
 ├── components/                 # 复合组件
 │   └── clock_widget.py        # 时钟弹窗组件
 ├── data/                       # 数据文件
@@ -124,20 +141,33 @@ umi_float/
 ├── assets/                     # 静态资源
 │   ├── icon.png                # 应用图标
 │   ├── arrow-go-back-line-black.svg
+│   ├── play-fill.svg           # 按钮图标（计时器）
+│   ├── pause-fill.svg          # 按钮图标（计时器）
+│   ├── close-line.svg          # 按钮图标（计时器）
+│   ├── refresh-line.svg        # 按钮图标（计时器）
 │   └── Weather/                 # 31 套天气 SVG 图标
 ├── extensions/                 # 内置扩展
-│   ├── deepin-calculator/       # 深度计算器（玲珑应用）
 │   ├── screenshot/              # 截图工具
 │   ├── dde-control-center/      # 控制中心
 │   ├── dde-file-manager/        # 文件管理器
 │   ├── clipboard/               # 剪切板历史（widget）
-│   └── color-picker/            # 取色器（widget）
+│   ├── color-picker/            # 取色器（widget）
+│   └── timer/                   # 计时器（widget，番茄钟/倒计时/正计时）
 ├── packaging/                  # 打包配置
 │   ├── DEBIAN/control          # deb 包元数据
-│   ├── DEBIAN/postinst         # 安装后脚本
-│   └── usr/                    # 启动器、桌面入口、图标
+│   ├── info                    # 应用信息
+│   └── entries/                # 启动器、桌面入口、图标
 ├── scripts/
-│   └── build-deb.sh            # 一键构建 deb 脚本
+│   ├── build-deb.sh            # 一键构建 deb 脚本
+│   └── gen_location_data.py    # 天气地区数据生成脚本
+├── debian/                     # debian 打包目录
+│   ├── changelog
+│   ├── control
+│   ├── copyright
+│   ├── rules
+│   └── source/format
+├── pyproject.toml              # Python 项目配置
+├── requirements-dev.txt        # 开发依赖
 └── requirements.txt            # Python 依赖
 ```
 
@@ -214,7 +244,8 @@ sudo dpkg -i umi-float_1.0.2_all.deb
 
 ```python
 def create_widget(host_info: dict):
-    """host_info 包含: name, accent_color, data_dir, app"""
+    """host_info 包含: name, accent_color, data_dir, app, widget_host,
+       set_float_display(data), clear_float_display(), keep_float_visible"""
     from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
 
     widget = QWidget()
@@ -248,11 +279,12 @@ def create_widget(host_info: dict):
 | `weather_api_key` | 和风天气 API Key | string | `""` |
 | `weather_location` | 天气城市 ID | string | `"101010100"` |
 | `position` | 悬浮球位置 | `{ "x": int, "y": int }` | `{ "x": 100, "y": 100 }` |
+| `toggle_shortcut` | 全局快捷键 | string | `"Alt+F"` |
 | `plugin_overrides` | 扩展覆盖配置 | object | `{}` |
 
 ## 开发计划
 
-### v1.0.2 - 当前版本
+### v1.0.3 - 当前版本
 
 - [x] 悬浮球 + 拖动 + 边缘吸附 + 贴边胶囊模式
 - [x] 滚轮循环切换显示模式
@@ -265,12 +297,15 @@ def create_widget(host_info: dict):
 - [x] 扩展管理（拖拽排序、启用/禁用、新建/编辑/删除）
 - [x] 图标选择器（系统图标 + 本地上传）
 - [x] 应用选择器（扫描系统 .desktop 文件）
-- [x] 内置扩展（深度计算器、截图、控制中心、文件管理器、剪切板历史、取色器）
+- [x] 内置扩展（深度计算器、截图、控制中心、文件管理器、剪切板历史、取色器、计时器）
 - [x] Widget 插件系统 + 独立窗口模式
 - [x] 导入插件包（.zip）
 - [x] 和风天气 + 自动 IP 定位
 - [x] 内存 / 网络速度实时监控
 - [x] 剪贴板历史监听（SQLite）
+- [x] 计时器扩展（番茄钟 / 倒计时 / 正计时 + 浮球进度环显示）
+- [x] 全局快捷键（Alt+F，X11 XGrabKey）
+- [x] 面板键盘导航（方向键 / Tab / Enter / Esc）
 
 ### v1.1.0 计划
 

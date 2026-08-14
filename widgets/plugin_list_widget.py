@@ -36,9 +36,11 @@ class DropForwardScrollArea(QScrollArea):
             event.ignore()
 
     def dragMoveEvent(self, event):
+        print(f"[DEBUG][ScrollArea.dragMove] event.pos()={event.pos()} type={type(event).__name__}")
         widget = self.widget()
         if widget and widget.acceptDrops():
-            pos = self.viewport().mapTo(widget, event.pos())
+            pos = self.mapTo(widget, event.pos())
+            print(f"[DEBUG][ScrollArea.dragMove] mapped pos={pos} widget={widget.objectName()}")
             from PyQt5.QtCore import QMimeData, Qt
             from PyQt5.QtGui import QDragMoveEvent
 
@@ -53,9 +55,11 @@ class DropForwardScrollArea(QScrollArea):
             event.setAccepted(new_event.isAccepted())
 
     def dropEvent(self, event):
+        print(f"[DEBUG][ScrollArea.drop] event.pos()={event.pos()} type={type(event).__name__}")
         widget = self.widget()
         if widget and widget.acceptDrops():
-            pos = self.viewport().mapTo(widget, event.pos())
+            pos = self.mapTo(widget, event.pos())
+            print(f"[DEBUG][ScrollArea.drop] mapped pos={pos} widget={widget.objectName()}")
             from PyQt5.QtCore import QMimeData, Qt
             from PyQt5.QtGui import QDropEvent
 
@@ -274,6 +278,7 @@ class PluginListWidget(QWidget):
             event.ignore()
 
     def dragMoveEvent(self, event):
+        print(f"[DEBUG][List.dragMove] event.pos()={event.pos()} type={type(event).__name__}")
         if not event.mimeData().hasFormat(PluginListItem.MIME_TYPE):
             self._hide_drop_indicator()
             event.ignore()
@@ -282,6 +287,7 @@ class PluginListWidget(QWidget):
         drop_pos = event.pos()
 
         target_section, target_group = self._detect_target_section(drop_pos)
+        print(f"[DEBUG][List.dragMove] drop_pos={drop_pos} target_group={target_group}")
 
         if target_section is None:
             self._hide_drop_indicator()
@@ -306,6 +312,7 @@ class PluginListWidget(QWidget):
             insert_y = self._calculate_insert_position(
                 drop_pos, target_layout, target_section
             )
+            print(f"[DEBUG][List.dragMove] insert_y={insert_y}")
             if insert_y is not None:
                 self._show_drop_indicator_at(insert_y, target_section)
 
@@ -317,6 +324,8 @@ class PluginListWidget(QWidget):
     def dropEvent(self, event):
         self._hide_drop_indicator()
 
+        print(f"[DEBUG][List.drop] event.pos()={event.pos()} type={type(event).__name__}")
+
         if not event.mimeData().hasFormat(PluginListItem.MIME_TYPE):
             event.ignore()
             return
@@ -325,6 +334,7 @@ class PluginListWidget(QWidget):
             "utf-8"
         )
         drop_pos = event.pos()
+        print(f"[DEBUG][List.drop] plugin_id={plugin_id} drop_pos={drop_pos}")
 
         target_section = None
         target_group = None
@@ -357,6 +367,7 @@ class PluginListWidget(QWidget):
         target_layout = (
             enabled_content if target_group == "enabled" else disabled_content
         )
+        print(f"[DEBUG][List.drop] target_group={target_group} target_layout_count={target_layout.count() if target_layout else 'None'}")
 
         source_is_enabled = False
         for child in self._enabled_section.findChildren(PluginListItem):
@@ -370,6 +381,7 @@ class PluginListWidget(QWidget):
             self._handle_cross_group_move(plugin_id, target_group)
         else:
             new_index = self._calculate_drop_index(drop_pos, target_layout)
+            print(f"[DEBUG][List.drop] _calculate_drop_index returned new_index={new_index}")
             self._handle_reorder(plugin_id, new_index, target_group)
 
         event.acceptProposedAction()
@@ -377,6 +389,7 @@ class PluginListWidget(QWidget):
 
     def _calculate_drop_index(self, pos, layout) -> int:
         if layout is None or layout.count() == 0:
+            print(f"[DEBUG][dropIndex] layout empty, return 0")
             return 0
 
         actual_index = 0
@@ -385,16 +398,21 @@ class PluginListWidget(QWidget):
             if item and item.widget():
                 widget = item.widget()
                 if widget.objectName() == "placeholder":
+                    print(f"[DEBUG][dropIndex] i={i} skip placeholder")
                     continue
 
                 widget_rect = widget.rect()
                 widget_top_left = widget.mapTo(self, widget_rect.topLeft())
                 local_rect = widget_rect.translated(widget_top_left)
                 center_y = local_rect.top() + local_rect.height() // 2
+                pid = getattr(widget, 'plugin_id', '?')
+                print(f"[DEBUG][dropIndex] i={i} pid={pid} center_y={center_y} pos.y()={pos.y()} pos.y()<center_y={pos.y() < center_y}")
                 if pos.y() < center_y:
+                    print(f"[DEBUG][dropIndex] return actual_index={actual_index}")
                     return actual_index
                 actual_index += 1
 
+        print(f"[DEBUG][dropIndex] end of list, return actual_index={actual_index}")
         return actual_index
 
     def _handle_cross_group_move(self, plugin_id: str, target_group: str):
@@ -414,22 +432,61 @@ class PluginListWidget(QWidget):
 
         cfg = pm.loader._config.get()
         if group == "enabled":
-            plugins_list = list(cfg.get("enabled_plugins", []))
+            config_plugins = list(cfg.get("enabled_plugins", []))
         else:
-            plugins_list = list(cfg.get("disabled_plugins", []))
+            config_plugins = list(cfg.get("disabled_plugins", []))
 
-        old_index = plugins_list.index(plugin_id) if plugin_id in plugins_list else -1
+        # 从 UI 布局获取顺序（与 _calculate_drop_index 同源）
+        layout = self._get_section_content(
+            self._enabled_section if group == "enabled" else self._disabled_section
+        )
+        ui_plugins = []
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            if item and item.widget():
+                widget = item.widget()
+                if hasattr(widget, 'plugin_id'):
+                    ui_plugins.append(widget.plugin_id)
 
-        if old_index == -1:
+        old_ui_index = ui_plugins.index(plugin_id) if plugin_id in ui_plugins else -1
+        print(f"[DEBUG][reorder] plugin_id={plugin_id} new_index={new_index} old_ui_index={old_ui_index} group={group} ui_plugins={ui_plugins} config_plugins={config_plugins}")
+
+        if old_ui_index == -1:
             return
 
-        if new_index > old_index:
+        if new_index > old_ui_index:
             new_index -= 1
 
-        if new_index == old_index:
+        print(f"[DEBUG][reorder] after adjustment new_index={new_index}")
+
+        if new_index == old_ui_index:
+            print(f"[DEBUG][reorder] new_index == old_ui_index, skip")
             return
 
-        pm.move_plugin(plugin_id, new_index, group)
+        # 在 UI 顺序中执行重排
+        ui_plugins.remove(plugin_id)
+        ui_plugins.insert(new_index, plugin_id)
+
+        # 将 UI 顺序映射回 config 顺序：
+        # 1) 保留 UI 中所有在 config 里的插件顺序
+        # 2) 把不在 UI 中的 config-only 插件追加到末尾
+        new_config = []
+        for pid in ui_plugins:
+            if pid in config_plugins or pid == plugin_id:
+                if pid not in new_config:
+                    new_config.append(pid)
+        for pid in config_plugins:
+            if pid not in new_config:
+                new_config.append(pid)
+
+        print(f"[DEBUG][reorder] new_config={new_config}")
+
+        if group == "enabled":
+            pm.loader._config.update(enabled_plugins=new_config)
+        else:
+            pm.loader._config.update(disabled_plugins=new_config)
+
+        pm.loader.plugin_changed.emit(plugin_id)
 
     def refresh(self):
         """刷新列表"""
@@ -465,6 +522,7 @@ class PluginListWidget(QWidget):
     def _calculate_insert_position(self, pos, layout, section):
         """计算插入指示器的 Y 坐标位置"""
         if layout is None:
+            print(f"[DEBUG][insertPos] layout is None, return None")
             return None
 
         content_widget = None
@@ -474,6 +532,7 @@ class PluginListWidget(QWidget):
                 break
 
         if content_widget is None:
+            print(f"[DEBUG][insertPos] content_widget not found, return None")
             return None
 
         content_top_left = content_widget.mapTo(self, content_widget.rect().topLeft())
@@ -485,13 +544,18 @@ class PluginListWidget(QWidget):
             if item and item.widget():
                 widget = item.widget()
                 if widget.objectName() == "placeholder":
+                    print(f"[DEBUG][insertPos] i={i} skip placeholder")
                     continue
                 widget_rect = widget.rect()
                 widget_top_left = widget.mapTo(self, widget_rect.topLeft())
                 local_rect = widget_rect.translated(widget_top_left)
                 center_y = local_rect.top() + local_rect.height() // 2
+                pid = getattr(widget, 'plugin_id', '?')
+                print(f"[DEBUG][insertPos] i={i} pid={pid} center_y={center_y} pos.y()={pos.y()} pos.y()<center_y={pos.y() < center_y}")
                 if pos.y() < center_y:
-                    return local_rect.top() - 4
+                    ret = local_rect.top() - 4
+                    print(f"[DEBUG][insertPos] return {ret}")
+                    return ret
 
         last_bottom = content_inner_top
         for i in range(layout.count() - 1, -1, -1):
@@ -506,6 +570,7 @@ class PluginListWidget(QWidget):
                 last_bottom = local_rect.bottom() + 4
                 break
 
+        print(f"[DEBUG][insertPos] past end, return {last_bottom}")
         return last_bottom
 
     def _show_drop_indicator_at(self, y_pos, section):

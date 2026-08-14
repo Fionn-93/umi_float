@@ -237,7 +237,7 @@ class PluginEditDialog(QDialog):
         if icon_name.startswith("icons/"):
             from plugins.plugin_manager import PluginManager
 
-            icon = PluginManager.get().resolve_icon(icon_name, plugin_id)
+            icon = PluginManager.get().resolve_icon(icon_name, self._plugin_id)
             if icon and not icon.isNull():
                 pixmap = icon.pixmap(int(28 * dpr), int(28 * dpr))
                 if not pixmap.isNull():

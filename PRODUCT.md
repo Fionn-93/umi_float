@@ -211,6 +211,26 @@
 
 应用启动时，若天气城市为默认值（北京 `101010100`）且已配置 API Key，自动在后台线程中执行 IP 定位并设置最近城市。
 
+### 2.9 计时器
+
+内置计时器扩展，支持三种计时模式：
+
+- **番茄钟** — 工作/休息循环，结束时桌面通知（`notify-send`），预设快速选择（15/25/45 分钟工作，5/10/15 分钟休息），自动切换工作→休息→工作
+- **倒计时** — 1–180 分钟自定义倒计时，预设快速选择（5/10/30 分钟）
+- **正计时** — 精确到秒的计时器
+
+**浮球集成**：计时器运行时，悬浮球实时显示进度环 + 剩余时间（MM:SS）+ 分阶段图标（番茄/咖啡杯/沙漏/秒表）。番茄钟空闲态自动淡入淡出动画（pomodoro fade），悬停时恢复完全不透明。
+
+**独立窗口**：胶囊分段选择器（番茄钟/倒计时/正计时），可钉住窗口保持常驻，关闭后浮球恢复。
+
+### 2.10 全局快捷键
+
+- **Alt+F** 快捷键展开/隐藏面板（可在设置中自定义）
+- 基于 X11 XGrabKey 实现，注册到根窗口，通过 `QAbstractNativeEventFilter` 拦截 KeyPress 事件
+- `XkbSetIgnoreLockMods` 确保 CapsLock/NumLock/ScrollLock 不干扰快捷键响应
+- 面板键盘导航：方向键/Tab 循环切换按钮、Enter 激活、Esc 关闭
+- 快捷键变更后自动注销旧键并注册新键
+
 ---
 
 ## 三、界面交互说明
@@ -274,6 +294,7 @@
 | 文件管理器 | command | `/usr/bin/dde-file-manager -n` | 打开 Deepin 文件管理器（新窗口） |
 | 剪切板历史 | widget | `clipboard`（entry: `create_widget`） | 独立窗口，SQLite 存储，支持文本/图片/文件历史 |
 | 取色器 | widget | `color_picker`（entry: `create_widget`） | 独立窗口，从屏幕任意位置拾取颜色 |
+| 计时器 | widget | `timer`（entry: `create_widget`） | 独立窗口，番茄钟/倒计时/正计时，浮球进度环显示 |
 
 ### 4.3 扩展管理
 
@@ -344,10 +365,14 @@ Widget 类型插件需在扩展目录下提供 Python 模块，导出 `create_wi
 def create_widget(host_info: dict):
     """
     host_info 包含:
-      - name: str          # 扩展名
-      - accent_color: str   # 当前主题色 (#RRGGBB)
-      - data_dir: Path      # 扩展数据目录
-      - app: QApplication   # Qt 应用实例
+      - name: str              # 扩展名
+      - accent_color: str       # 当前主题色 (#RRGGBB)
+      - data_dir: Path          # 扩展数据目录
+      - app: QApplication       # Qt 应用实例
+      - widget_host: QWidget    # PluginPanel 宿主面板引用
+      - set_float_display: callable  # 在浮球上显示自定义进度环
+      - clear_float_display: callable  # 清除自定义浮球显示
+      - keep_float_visible: bool  # 保持浮球可见
     """
     from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
 
@@ -404,10 +429,11 @@ def create_widget(host_info: dict):
 │   ConfigManager  │  SystemInfo / ThemeColors    │
 │   AppState       │  MemoryInfo / NetworkMonitor │
 │   Constants      │  WeatherInfo / IPLocation    │
-│                  │  ClipboardWatcher / AutoStart │
+│                  │  ClipboardWatcher / AutoStart│
+│                  │  GlobalHotkey (X11 XGrabKey) │
 ├─────────────────────────────────────────────────┤
 │              extensions/                         │
-│   calculator │ screenshot │ clipboard │ color-picker │
+│   calculator │ screenshot │ clipboard │ color-picker │ timer │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -446,6 +472,7 @@ def create_widget(host_info: dict):
 | `utils/clipboard_watcher.py` | 全局剪贴板监听与 SQLite 存储 |
 | `utils/autostart.py` | XDG 自启管理 |
 | `utils/desktop_entry.py` | .desktop 文件解析与应用列表扫描 |
+| `utils/global_hotkey.py` | X11 全局快捷键（XGrabKey + 原生事件过滤器） |
 
 ### 核心设计模式
 
@@ -547,6 +574,7 @@ PYTHONPATH=$(pwd):$PYTHONPATH python3 main.py
 | `weather_api_key` | 和风天气 API Key | string | `""` |
 | `weather_location` | 天气城市 ID | string（QWeather Location ID） | `"101010100"` |
 | `position` | 悬浮球位置 | `{ "x": int, "y": int }` | `{ "x": 100, "y": 100 }` |
+| `toggle_shortcut` | 全局快捷键 | string | `"Alt+F"` |
 | `plugin_overrides` | 扩展覆盖配置 | object | `{}` |
 
 **弃用配置项**：

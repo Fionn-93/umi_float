@@ -49,6 +49,7 @@ Any instance attribute must be initialized **before** the `_instance` check, oth
 - Execution: `subprocess.Popen(..., shell=True, ...)` — `shell=True` is required because some commands use `qdbus` with arguments.
 - `plugin_changed` signal exists on `PluginLoader` but is never connected to a `QFileSystemWatcher`. Hot reload is not implemented.
 - Project plugins (`<repo>/extensions/`) override user plugins (`~/.local/share/umi-float/extensions/`) with the same directory name.
+- Widget plugins receive `host_info` with `set_float_display(data)` / `clear_float_display()` to show custom progress ring + icon + text on the float ball, and `keep_float_visible` flag to keep the ball visible when the plugin window is open (used by the timer plugin).
 
 ### Import Side Effects
 
@@ -59,7 +60,7 @@ Importing `core.constants` creates directories at module load time:
 
 ### Application Lifecycle
 
-`QApplication.setQuitOnLastWindowClosed(False)` — closing the float widget does not quit the app. Quit only via system tray menu.
+`QApplication.setQuitOnLastWindowClosed(False)` — closing the float widget does not quit the app. Quit only via system tray menu. `keep_float_visible` flag on `host_info` prevents the float ball from hiding when a plugin window is open (used by the timer plugin).
 
 ### Dead Code
 
@@ -130,6 +131,27 @@ Must multiply pixel sizes by `devicePixelRatio()` and call `setDevicePixelRatio(
 ### Icon Paths in PieButton
 
 Icons starting with `icons/` are custom icons saved to `DATA_DIR`. System icons use `QIcon.fromTheme()`.
+
+### Plugin List Drag & Drop (most recent bug)
+
+`_calculate_drop_index` returns the index in the **UI layout** (visible list). `_handle_reorder` must compute `old_index` from the **same layout**, not from the config list (`enabled_plugins`). If config-only plugins (loaded but not visible) exist, the config index differs from the UI index, causing incorrect adjustment/early-return.
+
+**Fix**: `_handle_reorder` reads widget order from `_get_section_content().layout()`, applies the reorder in UI coordinates, then maps the result back to config order by preserving UI order for config items.
+
+### Timer Float Display Bridge
+
+When a timer/plugin runs, the float ball can show a custom display (progress ring + icon + MM:SS text) via `set_float_display()` / `clear_float_display()` passed in `host_info`. The `keep_float_visible` flag prevents the float ball from hiding when the plugin window opens. The pomodoro fade animation (`text_opacity` pyqtProperty, 1.0→0.25 on idle, 800ms pulse) is handled by `float_button.py:_paint_override_mode()`.
+
+### Global Hotkey (X11 XGrabKey)
+
+System: `utils/global_hotkey.py` → `GlobalHotkeyManager` uses `XGrabKey` on the root window + `QAbstractNativeEventFilter` intercepting `xcb_generic_event_t` KeyPress events. `XkbSetIgnoreLockMods` ensures CapsLock/NumLock/ScrollLock don't interfere. Config key: `toggle_shortcut` (default `"Alt+F"`). Keyboard navigation in PiePanel (Up/Down/Tab cycle, Enter activate, Esc close) is wired separately.
+
+### host_info Plugin Context
+
+Widget plugins receive a `host_info` dict with:
+- `name`, `accent_color`, `data_dir`, `app`, `widget_host` (PluginPanel reference)
+- `set_float_display(data)` / `clear_float_display()` — show/custom progress ring on the float ball
+- `keep_float_visible: bool` — if True, float ball stays visible when the plugin window is open
 
 ## Design Reference
 

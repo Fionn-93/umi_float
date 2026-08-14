@@ -314,6 +314,10 @@ widget 插件的主类构造函数接收一个 `host_info` 字典：
 | `accent_color` | string | 当前应用主题色（十六进制，如 `"#7B61FF"`） |
 | `data_dir` | Path | 插件数据目录 `~/.local/share/umi-float/extensions/<plugin_id>/data/` |
 | `app` | QApplication | 主应用实例 |
+| `widget_host` | QWidget | PluginPanel 宿主面板引用 |
+| `set_float_display` | callable | `set_float_display(data: dict)` — 在浮球上显示自定义进度环 + 图标 + 文字。`data` 格式：`{ "progress": 0.0–1.0, "icon": QIcon, "text": str, "icon_color": str }` |
+| `clear_float_display` | callable | `clear_float_display()` — 清除自定义浮球显示，恢复为当前显示模式 |
+| `keep_float_visible` | bool | 若为 `True`，插件窗口打开时浮球保持可见（默认 `False`，用于计时器插件确保倒计时可见） |
 
 ```python
 def __init__(self, host_info: dict):
@@ -321,6 +325,17 @@ def __init__(self, host_info: dict):
     self._host_info = host_info
     self._accent_color = host_info.get("accent_color", "#7B61FF")
     data_dir = host_info.get("data_dir")  # Path 对象
+
+    # 可选：更新浮球显示
+    host_info.get("set_float_display")({
+        "progress": 0.5,
+        "icon": my_icon,
+        "text": "05:30",
+        "icon_color": "#FF6B6B",
+    })
+
+    # 可选：让浮球保持可见
+    host_info.get("keep_float_visible", False)
 ```
 
 ### 6.5 独立窗口模式（window_mode: independent）
