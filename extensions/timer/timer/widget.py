@@ -3,6 +3,7 @@
 import json
 import logging
 import subprocess
+import time
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
@@ -225,9 +226,7 @@ class PomodoroPage(QWidget):
         self._time_label.setStyleSheet("color: #1f2937;")
         layout.addWidget(self._time_label)
 
-        self._progress_bar = StyledProgressBar(
-            accent_color=self._parent.accent_color
-        )
+        self._progress_bar = StyledProgressBar(accent_color=self._parent.accent_color)
         self._progress_bar.setFixedHeight(6)
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
@@ -410,7 +409,8 @@ class PomodoroPage(QWidget):
         else:
             r, g, b = self._dot_rgb
             self._status_dot.setStyleSheet(
-                "background: rgba(%d,%d,%d,0.3); border-radius: 4px; border: none;" % (r, g, b)
+                "background: rgba(%d,%d,%d,0.3); border-radius: 4px; border: none;"
+                % (r, g, b)
             )
 
     def _update_display(self):
@@ -425,18 +425,14 @@ class PomodoroPage(QWidget):
             status = "工作中"
             icon_path = TOMATO_ICON
             progress = (
-                self._remaining_sec / self._total_sec
-                if self._total_sec > 0
-                else 0
+                self._remaining_sec / self._total_sec if self._total_sec > 0 else 0
             )
             dot_color = self._parent.accent_color
         else:
             status = "休息中"
             icon_path = CUP_ICON
             progress = (
-                self._remaining_sec / self._total_sec
-                if self._total_sec > 0
-                else 0
+                self._remaining_sec / self._total_sec if self._total_sec > 0 else 0
             )
             dot_color = "#4CAF50"
 
@@ -447,7 +443,7 @@ class PomodoroPage(QWidget):
         self._status_label.setText(status)
         self._dot_color = dot_color
         c = dot_color
-        self._dot_rgb = (int(c[1:3],16), int(c[3:5],16), int(c[5:7],16))
+        self._dot_rgb = (int(c[1:3], 16), int(c[3:5], 16), int(c[5:7], 16))
         self._status_dot.setStyleSheet(
             "background: %s; border-radius: 4px; border: none;" % dot_color
         )
@@ -568,9 +564,7 @@ class CountdownPage(QWidget):
         self._time_label.setStyleSheet("color: #1f2937;")
         layout.addWidget(self._time_label)
 
-        self._progress_bar = StyledProgressBar(
-            accent_color=self._parent.accent_color
-        )
+        self._progress_bar = StyledProgressBar(accent_color=self._parent.accent_color)
         self._progress_bar.setFixedHeight(6)
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
@@ -739,7 +733,8 @@ class CountdownPage(QWidget):
         else:
             r, g, b = self._dot_rgb
             self._status_dot.setStyleSheet(
-                "background: rgba(%d,%d,%d,0.3); border-radius: 4px; border: none;" % (r, g, b)
+                "background: rgba(%d,%d,%d,0.3); border-radius: 4px; border: none;"
+                % (r, g, b)
             )
 
     def _update_display(self):
@@ -747,9 +742,7 @@ class CountdownPage(QWidget):
         seconds = self._remaining_sec % 60
         time_str = "%02d:%02d" % (minutes, seconds)
         self._time_label.setText(time_str)
-        progress = (
-            self._remaining_sec / self._total_sec if self._total_sec > 0 else 0
-        )
+        progress = self._remaining_sec / self._total_sec if self._total_sec > 0 else 0
 
         if self._state == STATE_RUNNING:
             status = "倒计时中"
@@ -761,7 +754,7 @@ class CountdownPage(QWidget):
         self._status_label.setText(status)
         self._dot_color = dot_color
         c = dot_color
-        self._dot_rgb = (int(c[1:3],16), int(c[3:5],16), int(c[5:7],16))
+        self._dot_rgb = (int(c[1:3], 16), int(c[3:5], 16), int(c[5:7], 16))
         self._status_dot.setStyleSheet(
             "background: %s; border-radius: 4px; border: none;" % dot_color
         )
@@ -846,9 +839,7 @@ class StopwatchPage(QWidget):
         self._time_label.setStyleSheet("color: #1f2937;")
         layout.addWidget(self._time_label)
 
-        self._progress_bar = StyledProgressBar(
-            accent_color=self._parent.accent_color
-        )
+        self._progress_bar = StyledProgressBar(accent_color=self._parent.accent_color)
         self._progress_bar.setFixedHeight(6)
         self._progress_bar.setRange(0, 0)
         self._progress_bar.setValue(0)
@@ -980,7 +971,8 @@ class StopwatchPage(QWidget):
         else:
             r, g, b = self._dot_rgb
             self._status_dot.setStyleSheet(
-                "background: rgba(%d,%d,%d,0.3); border-radius: 4px; border: none;" % (r, g, b)
+                "background: rgba(%d,%d,%d,0.3); border-radius: 4px; border: none;"
+                % (r, g, b)
             )
 
     def _update_display(self):
@@ -1002,7 +994,7 @@ class StopwatchPage(QWidget):
         self._status_label.setText(status)
         self._dot_color = dot_color
         c = dot_color
-        self._dot_rgb = (int(c[1:3],16), int(c[3:5],16), int(c[5:7],16))
+        self._dot_rgb = (int(c[1:3], 16), int(c[3:5], 16), int(c[5:7], 16))
         self._status_dot.setStyleSheet(
             "background: %s; border-radius: 4px; border: none;" % dot_color
         )
@@ -1036,9 +1028,11 @@ class TimerWidget(QWidget):
         self._active_timer_page = None
         self._drag_pos = QPoint()
         self._pinned = False
-        self._just_shown = False
+        self._shown_at = 0.0
 
-        self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(
+            Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+        )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.resize(380, 400)
 
@@ -1119,11 +1113,11 @@ class TimerWidget(QWidget):
             f"    background: #ebedf0;"
             f"    color: #374151;"
             f"}}"
-            f"#FilterTabBtn[active=\"true\"] {{"
+            f'#FilterTabBtn[active="true"] {{'
             f"    background: {self._accent_color};"
             f"    color: #ffffff;"
             f"}}"
-            f"#FilterTabBtn[active=\"true\"]:hover {{"
+            f'#FilterTabBtn[active="true"]:hover {{'
             f"    background: rgba({ar}, {ag}, {ab}, 0.85);"
             f"}}"
         )
@@ -1200,7 +1194,7 @@ class TimerWidget(QWidget):
 
     def _on_tab_clicked(self, index):
         for i, btn in enumerate(self._tab_btns):
-            active = (i == index)
+            active = i == index
             btn.setProperty("active", active)
             btn.style().unpolish(btn)
             btn.style().polish(btn)
@@ -1208,22 +1202,15 @@ class TimerWidget(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
-        self._just_shown = True
-        QTimer.singleShot(300, self._clear_just_shown)
-        self.activateWindow()
-
-    def _clear_just_shown(self):
-        self._just_shown = False
+        self._shown_at = time.monotonic()
+        QTimer.singleShot(100, self.activateWindow)
 
     def changeEvent(self, event):
         if event.type() == QEvent.ActivationChange:
-            if (
-                self.isVisible()
-                and not self.isActiveWindow()
-                and not self._just_shown
-                and not self._pinned
-            ):
-                self.hide()
+            if self.isVisible() and not self._pinned:
+                elapsed = time.monotonic() - self._shown_at
+                if not self.isActiveWindow() and elapsed > 0.5:
+                    self.hide()
         super().changeEvent(event)
 
     def _load_pin_icon(self, filled: bool, color=None) -> QIcon:
