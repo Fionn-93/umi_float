@@ -37,7 +37,7 @@ from PyQt5.QtSvg import QSvgRenderer
 logger = logging.getLogger(__name__)
 
 _ICONS_DIR = Path(__file__).parent.parent / "icons"
-_ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
+_ASSETS_DIR = _ICONS_DIR
 
 TOMATO_ICON = str(_ICONS_DIR / "tomato.svg")
 CUP_ICON = str(_ICONS_DIR / "cup-fill.svg")
@@ -250,11 +250,6 @@ class PomodoroPage(QWidget):
             "QPushButton#ActionBtn:hover { background: rgba(%d,%d,%d,0.85); }"
             % (ar, ag, ab)
         )
-        action_shadow = QGraphicsDropShadowEffect(self._action_btn)
-        action_shadow.setBlurRadius(8)
-        action_shadow.setYOffset(2)
-        action_shadow.setColor(QColor(ar, ag, ab, 80))
-        self._action_btn.setGraphicsEffect(action_shadow)
         self._action_btn.clicked.connect(self._on_action)
         self._update_action_btn_text("开始")
 
@@ -302,7 +297,7 @@ class PomodoroPage(QWidget):
 
     def _update_stop_btn_text(self):
         self._stop_btn.setText("停止")
-        icon = self._parent._load_svg_icon("refresh-line", QColor("#6b7280"))
+        icon = self._parent._load_svg_icon("stop-line", QColor("#6b7280"))
         self._stop_btn.setIcon(icon)
         self._stop_btn.setIconSize(QSize(16, 16))
 
@@ -588,11 +583,6 @@ class CountdownPage(QWidget):
             "QPushButton#ActionBtn:hover { background: rgba(%d,%d,%d,0.85); }"
             % (ar, ag, ab)
         )
-        action_shadow = QGraphicsDropShadowEffect(self._action_btn)
-        action_shadow.setBlurRadius(8)
-        action_shadow.setYOffset(2)
-        action_shadow.setColor(QColor(ar, ag, ab, 80))
-        self._action_btn.setGraphicsEffect(action_shadow)
         self._action_btn.clicked.connect(self._on_action)
         self._update_action_btn_text("开始")
 
@@ -640,7 +630,7 @@ class CountdownPage(QWidget):
 
     def _update_reset_btn_text(self):
         self._reset_btn.setText("重置")
-        icon = self._parent._load_svg_icon("refresh-line", QColor("#6b7280"))
+        icon = self._parent._load_svg_icon("stop-line", QColor("#6b7280"))
         self._reset_btn.setIcon(icon)
         self._reset_btn.setIconSize(QSize(16, 16))
 
@@ -864,11 +854,6 @@ class StopwatchPage(QWidget):
             "QPushButton#ActionBtn:hover { background: rgba(%d,%d,%d,0.85); }"
             % (ar, ag, ab)
         )
-        action_shadow = QGraphicsDropShadowEffect(self._action_btn)
-        action_shadow.setBlurRadius(8)
-        action_shadow.setYOffset(2)
-        action_shadow.setColor(QColor(ar, ag, ab, 80))
-        self._action_btn.setGraphicsEffect(action_shadow)
         self._action_btn.clicked.connect(self._on_action)
         self._update_action_btn_text("开始")
 
@@ -904,7 +889,7 @@ class StopwatchPage(QWidget):
 
     def _update_reset_btn_text(self):
         self._reset_btn.setText("重置")
-        icon = self._parent._load_svg_icon("refresh-line", QColor("#6b7280"))
+        icon = self._parent._load_svg_icon("stop-line", QColor("#6b7280"))
         self._reset_btn.setIcon(icon)
         self._reset_btn.setIconSize(QSize(16, 16))
 
