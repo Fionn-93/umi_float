@@ -37,7 +37,7 @@ from PyQt5.QtSvg import QSvgRenderer
 logger = logging.getLogger(__name__)
 
 _ICONS_DIR = Path(__file__).parent.parent / "icons"
-_ASSETS_DIR = _ICONS_DIR
+_ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
 
 TOMATO_ICON = str(_ICONS_DIR / "tomato.svg")
 CUP_ICON = str(_ICONS_DIR / "cup-fill.svg")
