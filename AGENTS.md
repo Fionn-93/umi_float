@@ -142,10 +142,6 @@ Icons starting with `icons/` are custom icons saved to `DATA_DIR`. System icons 
 
 When a timer/plugin runs, the float ball can show a custom display (progress ring + icon + MM:SS text) via `set_float_display()` / `clear_float_display()` passed in `host_info`. The `keep_float_visible` flag prevents the float ball from hiding when the plugin window opens. The pomodoro fade animation (`text_opacity` pyqtProperty, 1.0→0.25 on idle, 800ms pulse) is handled by `float_button.py:_paint_override_mode()`.
 
-### Global Hotkey (X11 XGrabKey)
-
-System: `utils/global_hotkey.py` → `GlobalHotkeyManager` uses `XGrabKey` on the root window + `QAbstractNativeEventFilter` intercepting `xcb_generic_event_t` KeyPress events. `XkbSetIgnoreLockMods` ensures CapsLock/NumLock/ScrollLock don't interfere. Config key: `toggle_shortcut` (default `"Alt+F"`). Keyboard navigation in PiePanel (Up/Down/Tab cycle, Enter activate, Esc close) is wired separately.
-
 ### host_info Plugin Context
 
 Widget plugins receive a `host_info` dict with:

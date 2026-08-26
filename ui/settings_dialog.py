@@ -26,7 +26,7 @@ from PyQt5.QtWidgets import (
     QMessageBox,
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPropertyAnimation, QTimer
-from PyQt5.QtGui import QFont, QPalette, QColor, QKeySequence
+from PyQt5.QtGui import QFont, QPalette, QColor
 
 from core.config import get_config
 from utils.theme_colors import get_all_themes, get_current_accent_color, DEFAULT_THEME
@@ -494,99 +494,6 @@ def _make_combo(items, current_index=0):
     return combo
 
 
-class ShortcutButton(QPushButton):
-    """点击后进入快捷键捕获模式，Esc 或失焦取消"""
-
-    shortcut_captured = pyqtSignal(str)
-
-    _MODIFIER_KEYS = (
-        Qt.Key_Control,
-        Qt.Key_Alt,
-        Qt.Key_Shift,
-        Qt.Key_Meta,
-        Qt.Key_Super_L,
-        Qt.Key_Super_R,
-        Qt.Key_AltGr,
-    )
-
-    def __init__(self, default="", parent=None):
-        super().__init__(parent)
-        self._shortcut = default or ""
-        self._capturing = False
-        self.setMinimumWidth(200)
-        self.setCursor(Qt.PointingHandCursor)
-        self.clicked.connect(self._start_capture)
-        self._update_text()
-
-    def set_shortcut(self, text):
-        self._shortcut = text or ""
-        self._capturing = False
-        self._update_text()
-
-    def current_shortcut(self):
-        return self._shortcut
-
-    def _update_text(self):
-        if self._capturing:
-            self.setText("按下快捷键…  (Esc 取消)")
-        else:
-            self.setText(self._shortcut or "点击设置快捷键")
-
-    def _start_capture(self):
-        self._capturing = True
-        self._update_text()
-        self.setFocus()
-
-    def keyPressEvent(self, event):
-        if not self._capturing:
-            super().keyPressEvent(event)
-            return
-
-        key = event.key()
-        if key == Qt.Key_Escape:
-            self._capturing = False
-            self._update_text()
-            event.accept()
-            return
-
-        if key in self._MODIFIER_KEYS:
-            event.accept()
-            return
-
-        mods = event.modifiers()
-        names = []
-        if mods & Qt.ControlModifier:
-            names.append("Ctrl")
-        if mods & Qt.AltModifier:
-            names.append("Alt")
-        if mods & Qt.ShiftModifier:
-            names.append("Shift")
-        if mods & Qt.MetaModifier:
-            names.append("Super")
-
-        if not names:
-            from widgets.toast import ToastWidget
-
-            ToastWidget.get_instance(self.window()).show_toast(
-                "请使用带修饰键的组合（如 Ctrl / Alt / Shift）", success=False
-            )
-            event.accept()
-            return
-
-        combo = "+".join(names + [QKeySequence(key).toString()])
-        self._capturing = False
-        self._shortcut = combo
-        self._update_text()
-        self.shortcut_captured.emit(combo)
-        event.accept()
-
-    def focusOutEvent(self, event):
-        if self._capturing:
-            self._capturing = False
-            self._update_text()
-        super().focusOutEvent(event)
-
-
 class PersonalizePage(Page):
     def __init__(self, parent_dialog):
         super().__init__("个性化")
@@ -654,20 +561,6 @@ class PersonalizePage(Page):
         c3.addRow(SettingRow("间距", self.spacing_slider, "面板按钮之间的间距"))
         self.body.addWidget(c3)
 
-        c4 = Card("Shortcut")
-        self.toggle_shortcut_btn = ShortcutButton(cfg.get("toggle_shortcut", "Alt+F"))
-        self.toggle_shortcut_btn.shortcut_captured.connect(
-            self._on_toggle_shortcut_captured
-        )
-        c4.addRow(
-            SettingRow(
-                "显示/隐藏面板",
-                self.toggle_shortcut_btn,
-                "全局切换抽屉面板显示的快捷键（点击后按下新组合）",
-            )
-        )
-        self.body.addWidget(c4)
-
     def _on_theme_changed(self, index):
         themes = get_all_themes()
         if 0 <= index < len(themes):
@@ -696,10 +589,6 @@ class PersonalizePage(Page):
     def _on_expand_mode_changed(self, index):
         self.config.update(pie_expand_mode="click" if index == 0 else "hover")
         self.dialog.settings_changed.emit("pie_panel")
-
-    def _on_toggle_shortcut_captured(self, combo):
-        self.config.update(toggle_shortcut=combo)
-        self.dialog.settings_changed.emit("shortcuts")
 
 
 class WeatherPage(Page):

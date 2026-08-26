@@ -223,13 +223,9 @@
 
 **独立窗口**：胶囊分段选择器（番茄钟/倒计时/正计时），可钉住窗口保持常驻，关闭后浮球恢复。
 
-### 2.10 全局快捷键
+### 2.10 面板键盘导航
 
-- **Alt+F** 快捷键展开/隐藏面板（可在设置中自定义）
-- 基于 X11 XGrabKey 实现，注册到根窗口，通过 `QAbstractNativeEventFilter` 拦截 KeyPress 事件
-- `XkbSetIgnoreLockMods` 确保 CapsLock/NumLock/ScrollLock 不干扰快捷键响应
 - 面板键盘导航：方向键/Tab 循环切换按钮、Enter 激活、Esc 关闭
-- 快捷键变更后自动注销旧键并注册新键
 
 ---
 
@@ -430,7 +426,6 @@ def create_widget(host_info: dict):
 │   AppState       │  MemoryInfo / NetworkMonitor │
 │   Constants      │  WeatherInfo / IPLocation    │
 │                  │  ClipboardWatcher / AutoStart│
-│                  │  GlobalHotkey (X11 XGrabKey) │
 ├─────────────────────────────────────────────────┤
 │              extensions/                         │
 │   calculator │ screenshot │ clipboard │ color-picker │ timer │
@@ -472,7 +467,6 @@ def create_widget(host_info: dict):
 | `utils/clipboard_watcher.py` | 全局剪贴板监听与 SQLite 存储 |
 | `utils/autostart.py` | XDG 自启管理 |
 | `utils/desktop_entry.py` | .desktop 文件解析与应用列表扫描 |
-| `utils/global_hotkey.py` | X11 全局快捷键（XGrabKey + 原生事件过滤器） |
 
 ### 核心设计模式
 
@@ -574,7 +568,6 @@ PYTHONPATH=$(pwd):$PYTHONPATH python3 main.py
 | `weather_api_key` | 和风天气 API Key | string | `""` |
 | `weather_location` | 天气城市 ID | string（QWeather Location ID） | `"101010100"` |
 | `position` | 悬浮球位置 | `{ "x": int, "y": int }` | `{ "x": 100, "y": 100 }` |
-| `toggle_shortcut` | 全局快捷键 | string | `"Alt+F"` |
 | `plugin_overrides` | 扩展覆盖配置 | object | `{}` |
 
 **弃用配置项**：

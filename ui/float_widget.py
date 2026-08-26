@@ -42,7 +42,6 @@ class FloatWidget(DraggableWidget):
     drag_started = pyqtSignal()
     hover_expand = pyqtSignal()
     display_mode_changed = pyqtSignal(str)
-    alt_f_pressed = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -605,13 +604,6 @@ class FloatWidget(DraggableWidget):
         if cfg.get("pie_expand_mode", "click") == "hover":
             self._hover_timer.start()
         super().enterEvent(event)
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_F and (event.modifiers() & Qt.AltModifier):
-            self.alt_f_pressed.emit()
-            event.accept()
-        else:
-            super().keyPressEvent(event)
 
     def wheelEvent(self, event):
         if self._state == "capsule":

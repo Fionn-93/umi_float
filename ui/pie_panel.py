@@ -562,10 +562,6 @@ class PiePanel(QWidget):
             self.hide_panel()
             event.accept()
 
-        elif key == Qt.Key_F and (event.modifiers() & Qt.AltModifier):
-            self.hide_panel()
-            event.accept()
-
         else:
             super().keyPressEvent(event)
 

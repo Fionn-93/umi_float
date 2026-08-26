@@ -117,9 +117,6 @@ class PluginPanel(QWidget):
             if event.key() == Qt.Key_Escape:
                 self.hide_panel()
                 return True
-            if event.key() == Qt.Key_F and (event.modifiers() & Qt.AltModifier):
-                self.hide_panel()
-                return True
         return super().eventFilter(obj, event)
 
 

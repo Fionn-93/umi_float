@@ -77,10 +77,8 @@ Umi-Float 是一款面向 Deepin / UOS Linux 桌面环境的轻量级悬浮工�
 - 运行时浮球实时显示进度环 + 剩余时间 + 分阶段图标（番茄/咖啡杯/沙漏/秒表）
 - 番茄钟空闲态自动淡入淡出动画（pomodoro fade）
 
-### 全局快捷键
+### 面板键盘导航
 
-- **Alt+F** 全局快捷键展开/隐藏面板（可自定义）
-- 基于 X11 XGrabKey 实现，支持 CapsLock/NumLock/ScrollLock 锁定修饰键
 - 面板键盘导航：方向键/Tab 循环切换、Enter 激活、Esc 关闭
 
 ## 技术栈
@@ -133,7 +131,6 @@ umi_float/
 │   ├── clipboard_watcher.py  # 剪贴板历史监听
 │   ├── desktop_entry.py      # .desktop 文件解析
 │   ├── autostart.py           # XDG 自启管理
-│   └── global_hotkey.py      # X11 全局快捷键（XGrabKey）
 ├── components/                 # 复合组件
 │   └── clock_widget.py        # 时钟弹窗组件
 ├── data/                       # 数据文件
@@ -279,7 +276,6 @@ def create_widget(host_info: dict):
 | `weather_api_key` | 和风天气 API Key | string | `""` |
 | `weather_location` | 天气城市 ID | string | `"101010100"` |
 | `position` | 悬浮球位置 | `{ "x": int, "y": int }` | `{ "x": 100, "y": 100 }` |
-| `toggle_shortcut` | 全局快捷键 | string | `"Alt+F"` |
 | `plugin_overrides` | 扩展覆盖配置 | object | `{}` |
 
 ## 开发计划
@@ -304,7 +300,6 @@ def create_widget(host_info: dict):
 - [x] 内存 / 网络速度实时监控
 - [x] 剪贴板历史监听（SQLite）
 - [x] 计时器扩展（番茄钟 / 倒计时 / 正计时 + 浮球进度环显示）
-- [x] 全局快捷键（Alt+F，X11 XGrabKey）
 - [x] 面板键盘导航（方向键 / Tab / Enter / Esc）
 
 ### v1.1.0 计划

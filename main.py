@@ -30,7 +30,6 @@ from ui.plugin_panel import PluginPanel
 from ui.settings_dialog import SettingsDialog
 from ui.plugin_edit_dialog import PluginEditDialog
 from plugins.plugin_manager import PluginManager
-from utils.global_hotkey import GlobalHotkeyManager
 
 
 class Application:
@@ -117,8 +116,6 @@ class Application:
         self.tray_icon = TrayIcon()
         self.settings_dialog = None
         self._independent_widgets = {}
-        self.global_hotkeys = GlobalHotkeyManager()
-        self.app.aboutToQuit.connect(self.global_hotkeys.unregister_all)
 
         # 连接信号
         self.tray_icon.show_hide_requested.connect(self._toggle_float_widget)
@@ -140,14 +137,6 @@ class Application:
         self.drawer_panel.plugin_disable_requested.connect(self._on_plugin_disable)
 
         self.plugin_panel.closed.connect(self._on_plugin_panel_closed)
-        self.float_widget.alt_f_pressed.connect(self._on_toggle_shortcut)
-
-        self.global_hotkeys.toggle_shortcut_triggered.connect(self._on_toggle_shortcut)
-        self.global_hotkeys.update(
-            {
-                "toggle": self.config.get().get("toggle_shortcut", "Alt+F"),
-            }
-        )
 
         # 加载插件到面板
         self.plugin_manager.initialize()
@@ -216,17 +205,10 @@ class Application:
                 self.drawer_panel.refresh_preview_layout(self.float_widget)
             else:
                 self.drawer_panel.enter_preview_mode(self.float_widget)
-        elif target == "shortcuts":
-            self.global_hotkeys.update(
-                {
-                    "toggle": self.config.get().get("toggle_shortcut", "Alt+F"),
-                }
-            )
 
     def _quit(self):
         """退出应用"""
         print("正在退出...")
-        self.global_hotkeys.unregister_all()
         self.tray_icon.hide()
         self.app.quit()
 
@@ -504,15 +486,6 @@ class Application:
     def _on_plugin_panel_closed(self):
         """插件面板关闭后恢复浮球"""
         self.float_widget.show()
-
-    def _on_toggle_shortcut(self):
-        """快捷键展开面板（关闭请按 Esc）"""
-        if self.drawer_panel.isVisible():
-            return
-        if not self.float_widget.isVisible():
-            return
-        self.float_widget.hide()
-        self.drawer_panel.show_panel(self.float_widget)
 
     def _set_float_display(self, text: str, progress: float, icon_path: str = None):
         self._custom_display_state = (text, progress, icon_path)

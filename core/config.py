@@ -74,9 +74,6 @@ class ConfigManager:
             if data["pie_expand_mode"] in ("click", "hover"):
                 config["pie_expand_mode"] = data["pie_expand_mode"]
 
-        if "toggle_shortcut" in data and isinstance(data["toggle_shortcut"], str):
-            config["toggle_shortcut"] = data["toggle_shortcut"]
-
         if "auto_start" in data and isinstance(data["auto_start"], bool):
             config["auto_start"] = data["auto_start"]
 
