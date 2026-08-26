@@ -14,6 +14,7 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QFrame,
     QGraphicsDropShadowEffect,
+    QSizePolicy,
     QSpinBox,
     QTabWidget,
     QStackedWidget,
@@ -137,8 +138,8 @@ class PomodoroPage(QWidget):
         self._work_spin = QSpinBox()
         self._work_spin.setRange(1, 120)
         self._work_spin.setValue(DEFAULT_WORK_MIN)
-        self._work_spin.setSuffix(" 分钟")
         self._work_spin.setFixedHeight(32)
+        self._work_spin.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._work_spin.setStyleSheet(
             "QSpinBox { border: 1px solid #e5e7eb; border-radius: 6px; "
             "padding: 2px 8px; font-size: 13px; color: #1f2937; background: #ffffff; "
@@ -148,7 +149,14 @@ class PomodoroPage(QWidget):
         )
         self._work_spin.valueChanged.connect(self._on_settings_changed)
         work_layout.addWidget(work_label)
-        work_layout.addWidget(self._work_spin)
+
+        work_spin_row = QHBoxLayout()
+        work_spin_row.setSpacing(4)
+        work_spin_row.addWidget(self._work_spin)
+        work_unit = QLabel("分钟")
+        work_unit.setStyleSheet("color: #6b7280; font-size: 13px;")
+        work_spin_row.addWidget(work_unit)
+        work_layout.addLayout(work_spin_row)
 
         work_pills = QHBoxLayout()
         work_pills.setSpacing(6)
@@ -165,8 +173,8 @@ class PomodoroPage(QWidget):
         self._break_spin = QSpinBox()
         self._break_spin.setRange(1, 60)
         self._break_spin.setValue(DEFAULT_BREAK_MIN)
-        self._break_spin.setSuffix(" 分钟")
         self._break_spin.setFixedHeight(32)
+        self._break_spin.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._break_spin.setStyleSheet(
             "QSpinBox { border: 1px solid #e5e7eb; border-radius: 6px; "
             "padding: 2px 8px; font-size: 13px; color: #1f2937; background: #ffffff; "
@@ -176,7 +184,14 @@ class PomodoroPage(QWidget):
         )
         self._break_spin.valueChanged.connect(self._on_settings_changed)
         break_layout.addWidget(break_label)
-        break_layout.addWidget(self._break_spin)
+
+        break_spin_row = QHBoxLayout()
+        break_spin_row.setSpacing(4)
+        break_spin_row.addWidget(self._break_spin)
+        break_unit = QLabel("分钟")
+        break_unit.setStyleSheet("color: #6b7280; font-size: 13px;")
+        break_spin_row.addWidget(break_unit)
+        break_layout.addLayout(break_spin_row)
 
         break_pills = QHBoxLayout()
         break_pills.setSpacing(6)
@@ -188,13 +203,20 @@ class PomodoroPage(QWidget):
 
         settings_row.addLayout(work_layout)
         settings_row.addLayout(break_layout)
-        layout.addLayout(settings_row)
+
+        self._config_widget = QWidget()
+        config_layout = QVBoxLayout(self._config_widget)
+        config_layout.setContentsMargins(0, 0, 0, 0)
+        config_layout.setSpacing(14)
+        config_layout.addLayout(settings_row)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
         sep.setStyleSheet("color: #e5e7eb;")
         sep.setFixedHeight(1)
-        layout.addWidget(sep)
+        config_layout.addWidget(sep)
+
+        layout.addWidget(self._config_widget)
 
         status_row = QHBoxLayout()
         status_row.setAlignment(Qt.AlignCenter)
@@ -308,6 +330,9 @@ class PomodoroPage(QWidget):
             self._parent._save_settings()
             self._reset_display()
 
+    def _update_config_visible(self):
+        self._config_widget.setVisible(self._state == STATE_IDLE)
+
     def _on_action(self):
         if self._state == STATE_IDLE:
             self._parent._stop_any_active(self)
@@ -325,6 +350,7 @@ class PomodoroPage(QWidget):
         self._phase = "work"
         self._total_sec = self._work_min * 60
         self._remaining_sec = self._total_sec
+        self._update_config_visible()
         self._update_action_btn_text("暂停")
         self._work_spin.setEnabled(False)
         self._break_spin.setEnabled(False)
@@ -338,6 +364,7 @@ class PomodoroPage(QWidget):
         self._phase = "break"
         self._total_sec = self._break_min * 60
         self._remaining_sec = self._total_sec
+        self._update_config_visible()
         self._update_action_btn_text("暂停")
         self._timer.start()
         self._progress_bar.show()
@@ -369,6 +396,7 @@ class PomodoroPage(QWidget):
         self._phase = "work"
         self._remaining_sec = 0
         self._total_sec = 0
+        self._update_config_visible()
         self._update_action_btn_text("开始")
         self._work_spin.setEnabled(True)
         self._break_spin.setEnabled(True)
@@ -501,8 +529,8 @@ class CountdownPage(QWidget):
         self._dur_spin = QSpinBox()
         self._dur_spin.setRange(1, 180)
         self._dur_spin.setValue(DEFAULT_COUNTDOWN_MIN)
-        self._dur_spin.setSuffix(" 分钟")
         self._dur_spin.setFixedHeight(32)
+        self._dur_spin.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._dur_spin.setStyleSheet(
             "QSpinBox { border: 1px solid #e5e7eb; border-radius: 6px; "
             "padding: 2px 8px; font-size: 13px; color: #1f2937; background: #ffffff; "
@@ -510,8 +538,16 @@ class CountdownPage(QWidget):
             "QSpinBox::up-button, QSpinBox::down-button { width: 0px; }"
             "QSpinBox::up-arrow, QSpinBox::down-arrow { width: 0px; }"
         )
+        self._dur_spin.valueChanged.connect(self._on_settings_changed)
         dur_layout.addWidget(dur_label)
-        dur_layout.addWidget(self._dur_spin)
+
+        dur_spin_row = QHBoxLayout()
+        dur_spin_row.setSpacing(4)
+        dur_spin_row.addWidget(self._dur_spin)
+        dur_unit = QLabel("分钟")
+        dur_unit.setStyleSheet("color: #6b7280; font-size: 13px;")
+        dur_spin_row.addWidget(dur_unit)
+        dur_layout.addLayout(dur_spin_row)
 
         dur_pills = QHBoxLayout()
         dur_pills.setSpacing(6)
@@ -521,13 +557,19 @@ class CountdownPage(QWidget):
         dur_pills.addStretch()
         dur_layout.addLayout(dur_pills)
 
-        layout.addLayout(dur_layout)
+        self._config_widget = QWidget()
+        config_layout = QVBoxLayout(self._config_widget)
+        config_layout.setContentsMargins(0, 0, 0, 0)
+        config_layout.setSpacing(14)
+        config_layout.addLayout(dur_layout)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
         sep.setStyleSheet("color: #e5e7eb;")
         sep.setFixedHeight(1)
-        layout.addWidget(sep)
+        config_layout.addWidget(sep)
+
+        layout.addWidget(self._config_widget)
 
         status_row = QHBoxLayout()
         status_row.setAlignment(Qt.AlignCenter)
@@ -629,10 +671,19 @@ class CountdownPage(QWidget):
         self._action_btn.setIconSize(QSize(16, 16))
 
     def _update_reset_btn_text(self):
-        self._reset_btn.setText("重置")
+        self._reset_btn.setText("停止")
         icon = self._parent._load_svg_icon("stop-line", QColor("#6b7280"))
         self._reset_btn.setIcon(icon)
         self._reset_btn.setIconSize(QSize(16, 16))
+
+    def _on_settings_changed(self):
+        if self._state == STATE_IDLE:
+            self._total_min = self._dur_spin.value()
+            self._parent._save_settings()
+            self._reset_display()
+
+    def _update_config_visible(self):
+        self._config_widget.setVisible(self._state == STATE_IDLE)
 
     def _on_action(self):
         if self._state == STATE_IDLE:
@@ -648,6 +699,7 @@ class CountdownPage(QWidget):
         self._state = STATE_RUNNING
         self._total_sec = self._total_min * 60
         self._remaining_sec = self._total_sec
+        self._update_config_visible()
         self._update_action_btn_text("暂停")
         self._dur_spin.setEnabled(False)
         self._timer.start()
@@ -679,6 +731,7 @@ class CountdownPage(QWidget):
         self._state = STATE_IDLE
         self._remaining_sec = 0
         self._total_sec = 0
+        self._update_config_visible()
         self._update_action_btn_text("开始")
         self._dur_spin.setEnabled(True)
         self._reset_display()
@@ -691,6 +744,7 @@ class CountdownPage(QWidget):
         self._state = STATE_IDLE
         self._remaining_sec = 0
         self._total_sec = 0
+        self._update_config_visible()
         self._update_action_btn_text("开始")
         self._dur_spin.setEnabled(True)
         self._reset_display()
@@ -709,6 +763,7 @@ class CountdownPage(QWidget):
         self._state = STATE_IDLE
         self._update_action_btn_text("开始")
         self._dur_spin.setEnabled(True)
+        self._update_config_visible()
         self._parent._notify("倒计时结束", "设定的 %d 分钟已到" % self._total_min)
         self._reset_display()
         if self._parent._is_active_timer(self):
@@ -888,7 +943,7 @@ class StopwatchPage(QWidget):
         self._action_btn.setIconSize(QSize(16, 16))
 
     def _update_reset_btn_text(self):
-        self._reset_btn.setText("重置")
+        self._reset_btn.setText("停止")
         icon = self._parent._load_svg_icon("stop-line", QColor("#6b7280"))
         self._reset_btn.setIcon(icon)
         self._reset_btn.setIconSize(QSize(16, 16))
